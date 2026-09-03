@@ -1,5 +1,9 @@
 <div align="center">
 
+<p align="center">
+  <img src="assets/skill-verify-banner.svg" alt="skill-verify — evidence-first verification for AI coding agents" width="100%" />
+</p>
+
 # `skill-verify`
 
 ### The verification layer for AI coding agents
