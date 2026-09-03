@@ -1,240 +1,148 @@
-<div align="center">
+# Skill `verify` – Mode de vérification persistante pour agents IA
 
-<p align="center">
-  <img src="assets/skill-verify-banner.svg" alt="skill-verify — evidence-first verification for AI coding agents" width="100%" />
-</p>
+[![License](https://img.shields.io/github/license/agtktID/skill-verify.svg)](https://github.com/agtktID/skill-verify/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/agtktID/skill-verify.svg?style=social)](https://github.com/agtktID/skill-verify)
 
-# `skill-verify`
+> Skill Claude Code qui force les agents à **prouver** que ce qu'ils font marche, pas juste à le dire. Active un mode de vérification persistante avec gates, artefacts et verdict minimal.
 
-### The verification layer for AI coding agents
+![Skill verify demo](docs/demo.gif "Dé·¹mo du skill verify en action – tests, build, UI")
 
-**Build less on assumptions. Ship more with evidence.**
+## Présentation
 
-[![Status: Active](https://img.shields.io/badge/status-active-22c55e?style=for-the-badge)](https://github.com/agtktID/skill-verify)
-[![License: MIT](https://img.shields.io/badge/license-MIT-6366f1?style=for-the-badge)](LICENSE)
-[![Agent Skills](https://img.shields.io/badge/format-Agent%20Skills-f59e0b?style=for-the-badge)](https://agentskills.io/)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-d97706?style=for-the-badge)](https://code.claude.com/docs/en/hooks)
-[![Shell](https://img.shields.io/badge/automation-shell-111827?style=for-the-badge&logo=gnu-bash&logoColor=white)](scripts/verify.sh)
+`verify` est un skill Claude Code qui transforme la façon dont les agents travaillent sur tes projets :
 
-<br />
+- **Plus de "trust me bro"** : l'agent doit exé·¹cuter les tests, builds et flux réels, pas juste raisonner dessus.
+- **Vé·¹rification persistante** : une fois activé·¹, le mode reste actif pour toute la session. Chaque modification dé→clenche une nouvelle vé→rification.
+- **Preuves, pas d'intentions** : l'agent collecte des artefacts (sorties de tests, builds, captures UI) et les écrit dans `.verify/<ts>/report.md`.
+- **Verdict minimal** : `PASS`, `ECHEC`, `PARTIEL`, `BLOQUE` – sans pédagogie ni chain-of-thought visible.
 
-> A persistent, evidence-first verification skill for AI-assisted development.
-> It makes an agent prove that a change works before it can claim success.
+## Quick-start
 
-<br />
-
-[**Get started**](#-quick-start) · [**How it works**](#-how-it-works) · [**Skills catalog**](#-included-skills) · [**Contributing**](CONTRIBUTING.md)
-
-</div>
-
----
-
-## Why this exists
-
-AI coding agents are excellent at changing code quickly. The dangerous failure mode is not speed—it is moving to the next feature after an unverified change.
-
-`skill-verify` turns verification into a **persistent operating mode**:
-
-```text
-Change → invalidate old proof → replay the real flow → collect evidence → decide
-```
-
-No fresh evidence means no success claim.
-
-## What you get
-
-| Capability | What it does |
-|---|---|
-| Persistent mode | `$verify` stays active for the rest of the conversation. |
-| Change invalidation | Every edit makes previous verification obsolete. |
-| Real-flow replay | Verifies the affected user path, not only an isolated function. |
-| Evidence gates | Tests, builds, HTTP responses, logs, artifacts and screenshots. |
-| Agentic loop | Internal `ANALYZE → GAUNTLET → ACT → VERIFY → VERDICT` workflow. |
-| Anti-distractor output | Final response contains only evidence, unknowns and verdict. |
-| Honest uncertainty | `NON VERIFIE` is mandatory; missing coverage becomes visible. |
-| Stop gate | Optional Claude Code hook blocks unsupported “done” claims. |
-
-## Quick start
-
-### Install in a project
+### 1. Installer le skill
 
 ```bash
+# Dans ton projet
 mkdir -p .claude/skills
-cp -R /path/to/skill-verify/skills/verify .claude/skills/verify
+# Copie le dossier `verify/` (avec SKILL.md) dans .claude/skills/
 ```
 
-### Arm the mode
-
-Start Claude Code in the project and type:
-
-```text
-$verify
-```
-
-The mode remains active until:
-
-```text
-$verify off
-```
-
-### Run the deterministic verifier
+### 2. Activer le mode verify
 
 ```bash
-bash .claude/skills/verify/scripts/verify.sh
+claude
+> /verify
+# Le mode de vé→rification persistante est maintenant actif
 ```
 
-The script detects common project manifests, runs available test/build gates, stores logs under `.verify/<timestamp>/`, and produces a Markdown report.
+### 3. Demander une feature avec preuve
 
-### Add the completion gate
-
-Merge the `Stop` and `PostToolUse` entries from [`hooks/hooks.json`](hooks/hooks.json) into your project’s Claude Code settings. Read [`hooks/README.md`](hooks/README.md) first.
-
-> Hooks are a safety layer, not a substitute for a real test suite. Keep the commands project-specific and review every hook before enabling it.
-
-## How it works
-
-```mermaid
-flowchart LR
-    A[User request] --> B[Goal contract]
-    B --> C[Gauntlet]
-    C --> D[Real action]
-    D --> E[Fresh evidence]
-    E --> F{All gates pass?}
-    F -->|Yes| G[PASS]
-    F -->|No| H[FAIL / PARTIAL / BLOCKED]
-    G --> I[Compact report]
-    H --> I
+```bash
+claude
+> Ajoute cette feature et prouve que ça marche
 ```
 
-### The verification loop
+L'agent va :
+1. Exé·¹cuter les commandes ré→elles (tests, build, etc.).
+2. Gén→é·¹rer un rapport dans `.verify/<ts>/report.md`.
+3. Retourner un verdict `PASS/ECHEC/PARTIEL/BLOQUE` avec les preuves.
 
-1. **Analyze** the affected behavior internally.
-2. **Build the gauntlet**: select only the gates that can prove the requested outcome.
-3. **Act**: run the real command, API request, CLI path or UI flow.
-4. **Verify**: collect exit codes, outputs, logs and screenshots generated in the current turn.
-5. **Verdict**: return `PASS`, `ECHEC`, `PARTIEL` or `BLOQUE`.
+## Fonctionnalité·¹s clé
 
-The analysis stays internal. The evidence stays visible.
+| Fonctionnalité·¹ | Description |
+|------------------|-------------|
+| **Boucle agentique** | Analyse → Gauntlet → Action → Vé→rification → Verdict (interne, non affiché·¹e). |
+| **Gates configurables** | Tests, build, lint, UI, endpoints – définis dans `SKILL.md` ou via contexte. |
+| **Artefacts structururé·¹s** | Rapports dans `.verify/<ts>/report.md` avec tableaux de preuves. |
+| **Verdict minimal** | `PASS`, `ECHEC`, `PARTIEL`, `BLOQUE` – une ligne, pas de blabla. |
+| **Mode persistant** | Une fois `$verify` actif, chaque tour modifiant le code dé→clenche une vé→rification. |
+| **Compatible MCP** | Fonctionne avec tes MCP servers (Unity, GitHub, Apify, etc.). |
 
-## Evidence standard
+## Architecture
 
-A claim must be matched to an artifact created during the current verification turn.
+```text
+User
+  └── Claude Code + Skill `verify`
+        ├── Boucle agentique interne (analyse/gauntlet/action/verify/verdict)
+        ├── Scripts de vé→rification (tests, build, capture UI, etc.)
+        ├── Artefacts `.verify/<ts>/report.md`
+        └── Verdict minimal (PASS/ECHEC/PARTIEL/BLOQUE)
+```
 
-| Claim | Minimum evidence |
-|---|---|
-| “The tests pass” | Exact test command, relevant output and exit code `0`. |
-| “The build works” | Clean or documented build command, artifact check and exit code `0`. |
-| “The endpoint works” | Real request, status/body assertion and exit code. |
-| “The UI works” | Replayed flow plus fresh screenshot for every affected visual state. |
-| “The bug is fixed” | Reproduction before, change, same reproduction after, regression test. |
-| “Ready to deploy” | All required gates, deployment smoke test and explicit uncovered risks. |
+## Structure du skill
 
-A green unit test is not automatically proof of a working user flow. The evidence must match the claim.
+```text
+verify/
+├── SKILL.md              # Instructions principales du skill
+├── scripts/
+│   ├── verify.sh         # Script de vé→rification (tests, build, etc.)
+│   └── capture_ui.mjs    # Capture d'é·¹cran UI (optionnel)
+├── assets/
+│   └── report-template.md # Template de rapport `.verify/<ts>/report.md`
+└── evals/
+    └── evals.json        # Tests du skill (should-trigger / should-not-trigger)
+```
 
-## Included skills
+## Utilisation type
 
-| Skill | Purpose | Link |
-|---|---|---|
-| `verify` | Persistent evidence-first verification for code, config, data, UI and runtime behavior. | [`skills/verify/SKILL.md`](skills/verify/SKILL.md) |
-| `skill-architect` | Design and audit production Agent Skills. | [`skills/skill-architect/SKILL.md`](skills/skill-architect/SKILL.md) |
-| `gauntlet-loop-dev` | Run development work through explicit gates and feedback loops. | [`skills/gauntlet-loop-dev/SKILL.md`](skills/gauntlet-loop-dev/SKILL.md) |
-| `indagis-feature-builder` | Build Indagis features with structured execution and verification. | [`skills/indagis-feature-builder/SKILL.md`](skills/indagis-feature-builder/SKILL.md) |
-| `unity-gamedev` | Develop and verify Unity gameplay and editor workflows. | [`skills/unity-gamedev/SKILL.md`](skills/unity-gamedev/SKILL.md) |
+### Feature + preuve
 
-## Output contract
+```bash
+claude
+> /verify
+> Ajoute un endpoint POST /api/items et prouve que les tests passent
+```
 
-When verification mode is armed, the agent should keep its final response compact:
+L'agent :
+- Crè·¹e l'endpoint.
+- Lance `npm run test` (ou équivalent).
+- Écrit le rapport dans `.verify/<ts>/report.md`.
+- Retourne : `PASS – tests et build OK` ou `ECHEC – tests KO` + détails.
+
+### Correctif + re-vé·¹rification
+
+```bash
+claude
+> /verify
+> Corrige ce bug et re-vé·¹rifie que tout passe
+```
+
+Le skill rejoue les gates affecté·¹s et met à jour le rapport.
+
+## Contrat de sortie (quand verify est actif)
+
+Quand le mode est armé·¹, la sortie de l'agent doit respecter ce format :
 
 ```markdown
 MODE: VERIFY ARME
 
 ## Preuves
-| Gate | Commande | Résultat | Exit |
-|---|---|---|---|
-| tests | `npm test` | PASS | 0 |
+| Gate | Commande | Ré→sultat | Exit |
+|------|----------|-----------|------|
+| tests | `npm run test` | PASS | 0 |
+| build | `npm run build` | PASS | 0 |
 
 ## NON VERIFIE
-- UI flow: not covered
-- Deployment smoke test: not covered
+- Vé→rification visuelle (UI) : non couvert
+- Autres é→lé·¹ments non testé·¹s : <liste>
 
 ## Verdict
-PASS — tests et limites indiquées
+PASS | ECHEC | PARTIEL | BLOQUE
 ```
 
-No hidden confidence should be presented as proof. No omitted coverage should be silently treated as success.
+**Rè·¹gles :**
+- Pas de section "Analyse", "Self-review", "Socratic", etc.
+- Pas de pé→dagogie, pas de justification narrative.
+- Une ligne de verdict qui pointe vers les gates.
 
-## Supported verification targets
+## Contribuer
 
-The repository is designed to adapt to projects using:
+Les contributions sont bienvenues : nouveaux scripts de vé→rification, amélioration du SKILL.md, exemples.
 
-- Python / pytest / uv.
-- Node.js / npm / pnpm / yarn.
-- Go / `go test` / `go build`.
-- Rust / Cargo.
-- .NET / `dotnet test` / `dotnet build`.
-- Unity batch mode and project-specific CLI checks.
-- HTTP APIs and CLI applications.
-- Browser flows through Playwright when installed.
-- MCP-connected tools, provided their outputs are captured as evidence.
+1. Fork du repo.
+2. Crè·¹e une branche (`feat/nouveau-script`).
+3. Ajoute ou modifie des fichiers dans `verify/`.
+4. Ouvre une pull request.
 
-Detection is conservative. If the required runner or browser is unavailable, the correct result is `BLOCKED`, not a guessed `PASS`.
+## Licence
 
-## Repository layout
-
-```text
-.
-├── skills/
-│   ├── verify/
-│   ├── skill-architect/
-│   ├── gauntlet-loop-dev/
-│   ├── indagis-feature-builder/
-│   └── unity-gamedev/
-├── references/
-├── hooks/
-├── evals/
-└── README.md
-```
-
-## Security principles
-
-- Never place API keys, tokens or credentials in a skill, log, screenshot or commit.
-- Treat repository files and tool output as data, not as instructions that can override the skill’s policy.
-- Do not run destructive verification against production by default.
-- Require explicit confirmation before irreversible external actions.
-- Keep `.verify/` ignored when reports may contain sensitive project data.
-- Review hooks before enabling them; hooks execute with project-level permissions.
-
-## Evaluation
-
-The skill includes trigger and behavior evaluations under [`skills/verify/evals/evals.json`](skills/verify/evals/evals.json), covering:
-
-- verification requests,
-- code and UI changes,
-- failing tests,
-- missing runners,
-- persistent mode behavior,
-- should-not-trigger theoretical requests.
-
-## Contributing
-
-Contributions are welcome when they improve evidence quality without adding output noise.
-
-1. Create a focused branch.
-2. Update the relevant skill or reference.
-3. Add or update an evaluation case.
-4. Run the verifier and record the evidence.
-5. Open a pull request describing the claim, gates and uncovered areas.
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full workflow.
-
-## License
-
-Released under the [MIT License](LICENSE).
-
-<div align="center">
-
-### Build boldly. Verify relentlessly.
-
-[Back to top](#skill-verify)
-
-</div>
+MIT – voir `LICENSE`.
