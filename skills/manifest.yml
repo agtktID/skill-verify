@@ -1,0 +1,33 @@
+version: "0.1"
+project: skill-verify
+skills:
+  - name: verify
+    path: skills/verify
+    targets:
+      - claude-code
+      - agent-skills-compatible
+    verification:
+      - bash
+      - node
+      - playwright-optional
+  - name: skill-architect
+    path: skills/skill-architect
+    targets:
+      - claude-code
+      - agent-skills-compatible
+  - name: gauntlet-loop-dev
+    path: skills/gauntlet-loop-dev
+    targets:
+      - claude-code
+      - agent-skills-compatible
+  - name: indagis-feature-builder
+    path: skills/indagis-feature-builder
+    targets:
+      - claude-code
+      - agent-skills-compatible
+  - name: unity-gamedev
+    path: skills/unity-gamedev
+    targets:
+      - claude-code
+      - agent-skills-compatible
+      - unity

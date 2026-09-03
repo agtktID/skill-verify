@@ -1,0 +1,31 @@
+name: Verification failure
+description: Report a false PASS, missing proof, or verification regression
+title: "[verify] "
+labels: [verification, bug]
+body:
+  - type: textarea
+    id: claim
+    attributes:
+      label: Claim made
+      description: What did the agent claim was working?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence produced
+      description: Include commands, exit codes, logs, and screenshots.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

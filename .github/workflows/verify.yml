@@ -1,0 +1,66 @@
+name: Verify repository
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    name: Structure and syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate repository structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f README.md
+          test -f LICENSE
+          test -f CONTRIBUTING.md
+          test -f CODE_OF_CONDUCT.md
+          test -f SECURITY.md
+          test -f CHANGELOG.md
+          test -f skills/manifest.yml
+          test -f assets/skill-verify-banner.svg
+          for skill_dir in skills/*; do
+            test -f "$skill_dir/SKILL.md"
+            name=$(awk -F': ' '/^name:/{print $2; exit}' "$skill_dir/SKILL.md" | tr -d '\"' | tr -d "'")
+            test "$name" = "$(basename "$skill_dir")"
+            description=$(awk -F': ' '/^description:/{print $2; exit}' "$skill_dir/SKILL.md")
+            test -n "$description"
+          done
+      - name: Validate JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do python -m json.tool "$file" >/dev/null; done < <(find . -name '*.json' -not -path './.git/*' -print0)
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do bash -n "$file"; done < <(find . -name '*.sh' -not -path './.git/*' -print0)
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(find . -name '*.js' -o -name '*.mjs' -not -path './.git/*' -print0)
+      - name: Validate SVG
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '<svg' assets/skill-verify-banner.svg
+          grep -q '</svg>' assets/skill-verify-banner.svg
+      - name: Validate critical README links
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in CONTRIBUTING.md LICENSE assets/skill-verify-banner.svg skills/verify/SKILL.md skills/skill-architect/SKILL.md skills/gauntlet-loop-dev/SKILL.md skills/indagis-feature-builder/SKILL.md skills/unity-gamedev/SKILL.md; do test -e "$path"; done
