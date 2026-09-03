@@ -1,0 +1,11 @@
+{
+  "skill": "verify",
+  "version": "1.0.0",
+  "should_trigger": [
+    "$verify", "prouve que le build passe", "les tests passent ?", "corrige ce bug et verifie", "commit et push", "deploie en staging", "verifie l'API", "montre-moi que ca marche", "refactor sans regression", "ce bouton fonctionne-t-il ?"
+  ],
+  "should_not_trigger": [
+    "Explique TCP vs UDP", "Ecris un poeme", "Syntaxe d'une closure Rust", "Resume ce README", "Trouve la definition de UserService", "Bonnes pratiques Go", "Traduis ce paragraphe", "Donne des noms de jeu", "C'est quoi MCP ?", "Liste les fichiers"
+  ],
+  "edge_cases": ["$verify puis question theorique", "$verify off", "depot sans runner de tests"]
+}

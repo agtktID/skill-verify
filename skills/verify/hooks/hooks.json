@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+      "hooks": [{
+        "type": "command",
+        "command": "echo '[verify] Changement detecte : les preuves precedentes sont perimees. Rejoue le flux reel et capture de nouvelles preuves.' >&2; exit 0",
+        "timeout": 5000
+      }]
+    }],
+    "Stop": [{
+      "hooks": [{
+        "type": "command",
+        "command": "INPUT=$(cat); if [ \"$(printf '%s' \"$INPUT\" | jq -r '.stop_hook_active // false')\" = true ]; then exit 0; fi; if [ -d .verify ] && find .verify -name report.md -newermt '-10 minutes' -print -quit | grep -q .; then exit 0; fi; echo 'Gate verify: aucun rapport recent. Lance la verification et affiche les preuves, ou declare le tour purement informatif.' >&2; exit 2",
+        "timeout": 15000
+      }]
+    }]
+  }
+}
