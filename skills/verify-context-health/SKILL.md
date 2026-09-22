@@ -1,24 +1,22 @@
 ---
 name: verify-context-health
 description: >
-  Audite la santé du contexte agent (Claude Code / decode / Hermes) : budget de tokens au boot,
-  taux d'utilisation réelle des skills, respect des patterns de progressive disclosure,
-  clarté des descriptions de skills, et recommandations de nettoyage.
-  Anti-hallucination : toutes les métriques sont lues depuis les fichiers réels via Bash.
+  Audit de santé du contexte agent (Claude Code / Hermes / decode) : coût des skills en tokens
+  au boot, taux d'utilisation des skills, respect de la progressive disclosure, skills inutilisées
+  à désactiver, recommandations de nettoyage. Produit un rapport context-health-<ts>.md.
 license: MIT
-version: "1.1.0"
+version: "1.0.0"
 metadata:
   author: agtktID
   repo: https://github.com/agtktID/skill-verify
   updated: 2026-09-22
+  category: verification
   tags:
-    - verify
     - context-engineering
+    - health
     - progressive-disclosure
     - skills
-    - health
     - token-budget
-    - anti-hallucination
     - audit
 allowed-tools:
   - Bash
@@ -27,9 +25,9 @@ allowed-tools:
   - WebSearch
 ---
 
-# 🏥 Skill `verify-context-health`
+# 🎯 Rôle du skill `verify-context-health`
 
-Skill d'audit de la santé du contexte agent. Il vérifie que les skills installés sont **correctement configurés, utilisés et optimisés** pour ne pas gaspiller le budget de tokens au boot.
+Audite l'ensemble des skills d'un projet agent pour identifier : coût en contexte, skills jamais invoquées, descriptions mal formées, absence de progressive disclosure, et propose des actions de nettoyage concrètes.
 
 ---
 
@@ -37,157 +35,141 @@ Skill d'audit de la santé du contexte agent. Il vérifie que les skills install
 
 Utilise `/verify-context-health` quand :
 
-- Tu ajoutes ou modifies des skills et veux vérifier l'impact sur le contexte.
-- Tu constates que l'agent est lent, confus ou sature son contexte.
-- Tu veux un rapport d'audit des skills installés dans `.claude/skills/` ou `~/.claude/skills/`.
-- Tu veux identifier les skills jamais invoquées et les désactiver (`disable-model-invocation`).
-- Tu veux aligner ton catalogue sur les bonnes pratiques de context engineering (progressive disclosure, description-as-trigger, token budget < 2000 tokens au boot).
-
-Ne pas utiliser pour :
-
-- Vérification de code applicatif (utilise `verify` ou `verify-feature-end2end`).
-- Environnements sans dossier `.claude/` ou configuration skills accessible.
+- Avant d'ajouter de nouveaux skills (éviter le context bloat).
+- L'agent semble ignorer certains skills ou les confondre.
+- Audit périodique de santé du projet agent.
+- Après une refonte de skill avec `skill-architect`.
+- Le budget token au boot semble trop élevé (lenteur, troncature de contexte).
 
 ---
 
 ## 🔧 Pré-requis
 
-- Un dossier `.claude/skills/` (Claude Code) ou équivalent decode/Hermes contenant des fichiers `SKILL.md`.
-- Accès en lecture aux fichiers de configuration de l'agent.
-- Optionnel : logs de sessions précédentes pour analyser l'utilisation réelle des skills.
+- Accès au dossier `.claude/skills/` ou `skills/` du projet.
+- Optionnel : logs de sessions précédentes pour détecter les skills jamais invoquées.
+- Optionnel : `manifest.yml` avec liste des skills enregistrées.
 
 ---
 
-## 🧱 Pipeline d'audit
+## 🧱 Architecture de l'audit
 
 ```text
-User → Claude Code + Skill verify-context-health
-         ↓
-   1. Lister les skills installées (Bash / Read)
-   2. Analyser chaque SKILL.md : frontmatter + description + taille
-         ↓
-   3. Estimer le coût token au boot
-   4. Identifier les skills inutilisées / mal configurées
-         ↓
-   5. Détecter les violations de progressive disclosure
-   6. Recommandations classées par priorité
-         ↓
-   .verify/<timestamp>/context-health-report.md
+Scan skills/ → Lire chaque SKILL.md → Analyser frontmatter + description
+     ↓
+Évaluer : taille, clarté trigger, progressive disclosure, redondance
+     ↓
+Croiser avec manifest.yml (si présent)
+     ↓
+Rapport context-health-<ts>.md avec score et recommandations
 ```
 
 ---
 
-## 📜 Procédure détaillée
+## 📋 Procédure détaillée
 
-### 1. Inventaire des skills
-
-1. Lister tous les fichiers `SKILL.md` dans `.claude/skills/` (ou le dossier configuré).
-2. Pour chaque skill, lire :
-   - Le frontmatter YAML (name, description, version, allowed-tools).
-   - La longueur totale du fichier (en lignes et en tokens estimés).
-   - La présence ou absence de pattern progressive disclosure.
+### Étape 1 — Inventaire des skills
 
 ```bash
-find .claude/skills -name 'SKILL.md' | xargs wc -l
+find .claude/skills/ skills/ -name "SKILL.md" 2>/dev/null | sort | tee .verify/<ts>/skills-list.log
 ```
 
-### 2. Analyse des descriptions (description-as-trigger)
+### Étape 2 — Audit de chaque SKILL.md
 
-Pour chaque skill, évaluer :
+Pour chaque fichier, vérifier :
 
-- **Clarté du trigger** : la `description` YAML contient-elle les mots-clés qui activent le skill ?
-- **Anti-trigger** : y a-t-il une section "Ne pas utiliser pour" pour limiter les faux positifs ?
-- **Longueur** : si le SKILL.md dépasse 200 lignes, vérifier si la progressive disclosure est en place.
-- **allowed-tools** : les outils sont-ils limités au strict nécessaire ?
-- **name** : le champ `name` du frontmatter correspond-il exactement au nom du dossier ?
+| Critère | Seuil recommandé | Impact |
+|---|---|---|
+| Taille du SKILL.md | < 4 000 tokens (~16 KB) | Context bloat si dépassé |
+| Description frontmatter | 1–3 phrases, trigger clair | Active/inhibe l'invocation |
+| Présence d'anti-trigger | Optionnel mais recommandé | Réduit les faux positifs |
+| Progressive disclosure | Détails dans scripts/ ou assets/ | Réduit charge au boot |
+| `allowed-tools` déclaré | Obligatoire | Sécurité + lisibilité |
+| `version` déclarée | Obligatoire | Traçabilité |
 
-### 3. Estimation du coût token au boot
+### Étape 3 — Détection des skills inutilisées
 
-1. Estimer ~0.75 tokens par mot pour chaque `description` de skill chargée au boot.
-2. Identifier les skills avec `disable-model-invocation: false` (ou champ absent) → chargées au boot.
-3. Identifier les skills avec `disable-model-invocation: true` → coût nul au boot.
-4. Calculer le budget total et comparer au seuil recommandé (< 2000 tokens pour 10 skills).
+```bash
+# Si logs disponibles, chercher les invocations
+grep -r "/<skill-name>" .claude/logs/ 2>/dev/null | sort | uniq -c | sort -rn
+```
 
-### 4. Détection des anomalies
+Toute skill sans invocation depuis > 30 sessions → candidat à `disable-model-invocation: true`.
 
-Signaler :
+### Étape 4 — Vérification progressive disclosure
 
-- Skills avec `description` vide ou générique (< 10 mots).
-- Skills avec corps > 500 lignes sans progressive disclosure (pas de renvoi vers assets/).
-- Skills avec `allowed-tools` incluant des outils dangereux non nécessaires.
-- Skills en doublon ou chevauchement de périmètre.
-- Skills sans champ `version` ou `metadata.author`.
-- Skills sans section "Quand utiliser" / "Ne pas utiliser".
-- `name` frontmatter différent du nom du dossier.
+Une SKILL.md respecte la progressive disclosure si :
+- La description frontmatter est courte (trigger uniquement).
+- Les scripts lourds vivent dans `scripts/`.
+- Les docs longues vivent dans `assets/reference.md`.
+- Le SKILL.md lui-même est < 4 000 tokens.
 
-### 5. Recommandations
+### Étape 5 — Détection des redondances
 
-Produire une liste classée par priorité :
+Comparer les descriptions de toutes les skills. Si deux descriptions se ressemblent sémantiquement → signaler la redondance possible et proposer une fusion ou une délimitation claire.
 
-- **CRITIQUE** : skills bloquantes ou incohérentes (name mismatch, description vide, outils dangereux).
-- **MOYEN** : optimisations de budget token (corps > 500 lignes sans progressive disclosure).
-- **FAIBLE** : améliorations de clarté (trigger flou, anti-trigger manquant).
+### Étape 6 — Calcul du budget token au boot
+
+```bash
+for f in $(find .claude/skills/ skills/ -name "SKILL.md" 2>/dev/null); do
+  wc -c "$f"
+done | awk '{sum += $1} END {printf "Total chars: %d\nEstimated tokens: %d\n", sum, sum/4}'
+```
+
+### Étape 7 — Synthèse et score global
+
+| Score | Condition |
+|---|---|
+| **A** (sain) | Budget < 8 000 tokens, toutes les skills bien formées |
+| **B** (améliorable) | 1–3 skills à refactorer, budget < 16 000 tokens |
+| **C** (à refactorer) | > 3 skills problématiques ou budget > 16 000 tokens |
+| **D** (critique) | Context bloat sévère ou skills cassées détectées |
 
 ---
 
-## 📄 Format du rapport
+## 📜 Format du rapport `context-health-<ts>.md`
 
 ```markdown
-MODE: VERIFY-CONTEXT-HEALTH
+# Rapport Context Health — <timestamp>
 
-## Inventaire des skills
-| Skill | Lignes | Tokens estimés (boot) | Progressive Disclosure | name OK | Statut |
-|-------|--------|----------------------|----------------------|---------|--------|
-| verify | 180 | ~420 | ✅ | ✅ | OK |
-| mon-skill | 620 | ~1450 | ❌ | ✅ | ATTENTION |
+## Inventaire
+- Skills trouvées : <N>
+- Budget token estimé au boot : <N> tokens
 
-## Budget token estimé au boot
-- Total skills chargées : X
-- Total tokens estimés : ~Y tokens
-- Seuil recommandé : < 2000 tokens pour 10 skills
-- Statut : OK / DÉPASSE
+## Analyse par skill
 
-## Anomalies détectées
-- ❌ <skill-name> : description trop courte (<10 mots)
-- ⚠️ <skill-name> : corps > 500 lignes sans progressive disclosure
-- ⚠️ <skill-name> : name frontmatter ≠ nom du dossier
+| Skill | Taille (KB) | Tokens estimés | Trigger clair | Progressive Disc. | Score |
+|---|---|---|---|---|---|
+| verify | X KB | X | ✅ | ✅ | A |
+| skill-architect | X KB | X | ✅ | ⚠️ | B |
+
+## Skills à risque
+- <skill> : <raison> → Recommandation : <action>
 
 ## Recommandations
-1. [CRITIQUE] Ajouter une description claire à <skill-name>.
-2. [MOYEN] Passer <skill-name> en progressive disclosure (déplacer le corps dans assets/).
-3. [FAIBLE] Ajouter `disable-model-invocation: true` à <skill-name> si rarement utilisée.
+1. Déplacer <section> de <skill> vers `scripts/` ou `assets/`
+2. Passer <skill> en `disable-model-invocation: true`
+3. Fusionner <skill-A> et <skill-B> (redondance détectée)
+4. Réduire description de <skill> à 1–2 phrases trigger
 
-## Verdict
-**PASS** – Contexte sain, budget token OK.
-# ou
-**ATTENTION** – X anomalies détectées. Voir recommandations.
-# ou
-**CRITIQUE** – Budget token trop élevé ou skills bloquantes. Actions requises avant déploiement.
+## Score global
+**A** (sain) / **B** (améliorable) / **C** (à refactorer) / **D** (critique)
 ```
+
+---
+
+## 🛡️ Anti-hallucination et sécurité
+
+- Ne jamais estimer les tokens sans calcul réel via Bash.
+- Ne jamais déclarer une skill "inutilisée" sans preuve (logs ou absence d'invocation vérifiée).
+- Ne pas supprimer de fichiers sans confirmation explicite de l'utilisateur.
+- Ne pas modifier les SKILL.md directement — seulement recommander des actions.
 
 ---
 
 ## 🔗 Intégration avec les autres skills
 
 | Skill | Rôle |
-|-------|------|
+|---|---|
 | `skill-architect` | Refactore les skills identifiées comme problématiques |
-| `verify` | Peut être utilisé après refacto pour vérifier les scripts |
-| `gauntlet-loop-dev` | Itère sur les corrections de skills jusqu'à seuil de qualité |
-
----
-
-## 🛡️ Règles anti-hallucination
-
-- Ne jamais déclarer un skill "inutilisée" sans avoir cherché des traces d'invocation dans les logs.
-- Ne jamais estimer le coût token sans lire la taille réelle des fichiers via Bash.
-- Toujours baser les recommandations sur des métriques lues, pas devinées.
-- Si `.claude/skills/` n'existe pas, déclarer **BLOQUÉ** et demander le chemin correct.
-- Ne jamais modifier un SKILL.md pendant l'audit sans confirmation explicite.
-
----
-
-## 📚 Changelog
-
-- **v1.1.0** (2026-09-22) : Ajout détection name mismatch, section intégration, alerte seuil token, règles anti-hallucination renforcées.
-- **v1.0.0** : Version initiale.
+| `verify` | Valide après refactor qu'aucun skill existant n'est cassé |
+| `project-review` | Inclut un audit context-health dans la revue globale |

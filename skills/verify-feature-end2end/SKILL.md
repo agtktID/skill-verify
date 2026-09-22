@@ -53,9 +53,8 @@ Utilise `/verify-feature-end2end` quand :
 
 Ne pas utiliser pour :
 
-- Des projets sans serveur local ou sans commande de démarrage définissable.
-- Des vérifications purement statiques (utilise `/verify` à la place).
-- Des projets Unity (utilise `/verify-unity-playmode`).
+- Des projets sans serveur local ou sans commande de démarrage définissable → utilise `/verify`.
+- Des projets Unity → utilise `/verify-unity-playmode`.
 
 ---
 
@@ -108,20 +107,14 @@ User → Claude Code + Skill verify-feature-end2end
 
 ### Étape 2 — Démarrage de l'app
 
-1. Lancer la commande de démarrage via Bash en arrière-plan.
+```bash
+npm run dev &
+APP_PID=$!
+sleep 3
+curl -sf http://localhost:3000/health || curl -sf http://localhost:3000/
+```
 
-   ```bash
-   npm run dev &
-   APP_PID=$!
-   sleep 3  # attendre que le serveur soit prêt
-   ```
-
-2. Vérifier que le serveur répond (health check basique) :
-   ```bash
-   curl -sf http://localhost:3000/health || curl -sf http://localhost:3000/
-   ```
-
-3. Si le serveur ne répond pas après 10 secondes, marquer ce gate BLOQUÉ et arrêter la boucle.
+Si le serveur ne répond pas après 10 secondes → marquer BLOQUÉ et arrêter la boucle.
 
 ### Étape 3 — Exercice de la feature
 
@@ -135,11 +128,6 @@ curl -sf -X POST http://localhost:3000/api/feature \
 echo "Exit: $?"
 ```
 
-Vérifier :
-- Exit code 0.
-- La réponse contient les champs attendus.
-- Le statut HTTP est dans la plage 2xx.
-
 **Option B — Playwright CLI (UI / navigateur)**
 
 ```bash
@@ -147,37 +135,16 @@ npx playwright test --reporter=line 2>&1 | tee .verify/<ts>/playwright.log
 echo "Exit: $?"
 ```
 
-Vérifier :
-- Exit code 0.
-- Tous les tests sont PASS dans le log.
-
 ### Étape 4 — CI locale
 
-Exécuter dans l'ordre :
-
 ```bash
-# Tests
 npm test 2>&1 | tee .verify/<ts>/tests.log
-echo "Tests exit: $?"
-
-# Lint (optionnel)
 npm run lint 2>&1 | tee .verify/<ts>/lint.log
-echo "Lint exit: $?"
-
-# Build
 npm run build 2>&1 | tee .verify/<ts>/build.log
-echo "Build exit: $?"
-```
-
-Capturer l'exit code de chaque commande. Une commande avec exit code non nul = gate ECHEC.
-
-### Étape 5 — Arrêt de l'app
-
-```bash
 kill $APP_PID 2>/dev/null || true
 ```
 
-### Étape 6 — Synthèse et verdict
+### Étape 5 — Verdict
 
 | Condition | Verdict |
 |---|---|
@@ -186,10 +153,10 @@ kill $APP_PID 2>/dev/null || true
 | Critiques PASS, warnings/gaps | **PARTIEL** |
 | App non démarrable ou config manquante | **BLOQUE** |
 
-### Étape 7 — Gate PR
+### Étape 6 — Gate PR
 
-- Si verdict **PASS** ou **PARTIEL** : proposer `git add`, `git commit`, `git push`, puis suggérer l'ouverture de PR.
-- Si verdict **ECHEC** ou **BLOQUE** : ne pas pousser. Afficher les erreurs et les pistes de correction.
+- Si **PASS** ou **PARTIEL** → proposer `git add`, `git commit`, `git push`, ouvrir PR.
+- Si **ECHEC** ou **BLOQUE** → bloquer, afficher erreurs, proposer corrections.
 
 ---
 
@@ -218,12 +185,6 @@ MODE: VERIFY-FEATURE-END2END ARMÉ
 
 ## Verdict
 **PASS** – Pipeline complet réussi. PR gate ouvert.
-# ou
-**ECHEC** – <étape(s) échouée(s)>. PR bloquée.
-# ou
-**PARTIEL** – Critiques PASS, warnings: <liste>.
-# ou
-**BLOQUE** – <raison> (app non démarrable, config manquante...).
 
 ## Prochaines étapes
 - <corrections ou actions>
@@ -235,8 +196,8 @@ MODE: VERIFY-FEATURE-END2END ARMÉ
 
 - **Jamais de PASS sans exit code réel** capturé via Bash.
 - **Jamais de push si verdict ECHEC ou BLOQUE**.
-- Les secrets (tokens, API keys) ne doivent pas apparaître dans les logs. Si détectés, noter dans le rapport : "⚠️ Nettoyer les logs avant commit."
-- Ne lancer aucune commande destructrice (DROP TABLE, rm -rf, etc.) sans confirmation explicite.
+- Les secrets (tokens, API keys) ne doivent pas apparaître dans les logs.
+- Ne lancer aucune commande destructrice sans confirmation explicite.
 - Si l'app démarre sur un port déjà occupé, signaler le conflit et proposer un port alternatif.
 
 ---
@@ -248,4 +209,4 @@ MODE: VERIFY-FEATURE-END2END ARMÉ
 | `project-build` | Génère la feature → `verify-feature-end2end` la valide |
 | `gauntlet-loop-dev` | Itère sur la qualité → `verify-feature-end2end` valide avant PR |
 | `verify` | Vérification locale sans app démarrée (complémentaire) |
-| `project-ship` | Lance la livraison après que `verify-feature-end2end` a rendu PASS |
+| `project-ship` | Lance la livraison après verdict PASS |
