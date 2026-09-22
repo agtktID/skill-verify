@@ -1,22 +1,23 @@
 ---
 name: project-ship
-description: >
-  Prépare et exécute la livraison d'un projet ou d'une release : mise à jour du CHANGELOG,
-  bumping de version, build de production, tag Git, déploiement (Vercel/Railway/Docker/npm),
-  et ouverture de la PR ou release GitHub. Utiliser quand l'utilisateur est prêt à livrer.
+description: >-
+  Prépare et exécute la livraison complète d'un projet ou d'une version :
+  CHANGELOG, versioning sémantique, build de production, tag Git et déploiement.
+  Utiliser après project-test quand tous les tests sont PASS.
 license: MIT
-version: 1.0.0
+version: "1.0.0"
 metadata:
   author: agtktID
   repo: https://github.com/agtktID/skill-verify
-  created: 2026-09-22
+  updated: 2026-09-22
   tags:
     - project
     - ship
     - deploy
-    - release
     - changelog
-    - semver
+    - versioning
+    - release
+    - git-tag
 allowed-tools:
   - Bash
   - Read
@@ -24,212 +25,174 @@ allowed-tools:
   - WebSearch
 ---
 
-# 🚢 Rôle du skill `project-ship`
+# 🚢 Skill `project-ship`
 
-Ce skill orchestre la livraison complète d'un projet :
-depuis la mise à jour du CHANGELOG jusqu'au déploiement en production.
-Inspiré de Superpowers `/writing-plans` + GSD `/gsd-verify` + Matt Pocock `/git-guardrails-claude-code`.
-
-Flux : **Verify → CHANGELOG → Version → Build → Tag → Deploy → PR/Release**
+Skill de livraison complète. Il orchestre le CHANGELOG, le versioning sémantique,
+le build de production, le tag Git et le déploiement.
 
 ---
 
-## ✅ Quand utiliser ce skill
+## ✅ Quand utiliser
 
 Utilise `/project-ship` quand :
 
-- Toutes les features sont implémentées et les tests passent.
-- Tu veux créer une release (v1.0.0, v1.1.0, patch, etc.).
-- Tu veux déployer sur Vercel, Railway, Fly.io, npm, Docker Hub, etc.
-- Tu veux une PR propre avec un changelog et un tag Git.
+- Tous les tests sont PASS (après `project-test`).
+- Tu veux livrer une nouvelle version (patch, minor ou major).
+- Tu enchaînes dans la suite : `project-test → project-ship → project-review`.
 
-**Ne pas utiliser pour :**
+Ne pas utiliser pour :
 
-- Des features incomplètes (utiliser `/project-build` d'abord).
-- Des tests qui échouent (utiliser `/project-test` d'abord).
+- Livrer si les tests ne sont pas PASS (lancer `project-test` d'abord).
+- Des déploiements en production sans confirmation explicite de l'utilisateur.
+
+**Précédent :** `project-test` | **Suivant :** `project-review`
 
 ---
 
-## 🧱 Pipeline de livraison
+## 🔧 Pré-requis
+
+- Tests PASS (rapport `project-test` ou `verify`).
+- Un `CHANGELOG.md` existant ou à créer.
+- Un `package.json`, `pyproject.toml` ou équivalent pour le versioning.
+- Accès Git avec droits de push et de tag.
+- Optionnel : commande de build prod (`npm run build`, `go build`, etc.).
+- Optionnel : cible de déploiement (Vercel, Railway, Fly.io, etc.).
+
+---
+
+## 🔁 Pipeline
 
 ```text
-/project-ship [version]
-    ↓
-[PRÉ-REQUIS] Verify final
-    → bash skills/verify/scripts/ci.sh
-    → Doit être PASS avant de continuer
-    ↓
-[ÉTAPE 1] Mise à jour du CHANGELOG
-    → CHANGELOG.md (format Keep a Changelog)
-    ↓
-[ÉTAPE 2] Bump de version
-    → package.json / pyproject.toml / go.mod
-    ↓
-[ÉTAPE 3] Build de production
-    → npm run build / python build / go build
-    ↓
-[ÉTAPE 4] Tag Git + commit
-    → git tag v<version>
-    → git push origin main --tags
-    ↓
-[ÉTAPE 5] Déploiement
-    → Vercel / Railway / Docker / npm publish
-    ↓
-[ÉTAPE 6] PR ou Release GitHub
-    → Corps de release avec CHANGELOG
+User → Skill project-ship
+         ↓
+   1. Vérifier que les tests sont PASS
+   2. Déterminer le type de release (patch / minor / major)
+         ↓
+   3. Mettre à jour la version dans les fichiers
+   4. Mettre à jour CHANGELOG.md
+         ↓
+   5. Build de production
+   6. Commit + tag Git
+         ↓
+   7. Push + déploiement (avec confirmation)
+         ↓
+   Verdict : LIVRÉ / ECHEC / EN ATTENTE
 ```
 
 ---
 
-## 🔁 Procédure pour l'agent
+## 📝 Procédure détaillée
 
-### Pré-requis : Verify final OBLIGATOIRE
+### 1. Vérification des prérequis
+
+- Confirmer que les tests sont PASS (lire le dernier rapport ou lancer `npm test`).
+- Demander à l'utilisateur le type de release :
+  - **patch** : bug fix, aucun breaking change.
+  - **minor** : nouvelle feature rétro-compatible.
+  - **major** : breaking change.
+
+### 2. Versioning
 
 ```bash
-bash .claude/skills/verify/scripts/ci.sh
+# Node (npm version patch/minor/major -- --no-git-tag-version)
+npm version patch --no-git-tag-version
+
+# Python (mise à jour manuelle dans pyproject.toml ou setup.cfg)
+sed -i 's/version = "X.Y.Z"/version = "X.Y.Z+1"/' pyproject.toml
 ```
 
-**Si le résultat n'est pas PASS, NE PAS continuer.**
-Afficher le verdict et demander à l'utilisateur de corriger d'abord.
+### 3. Mise à jour CHANGELOG.md
 
-### Étape 1 : Mise à jour du CHANGELOG
-
-Mettre à jour `CHANGELOG.md` avec le format Keep a Changelog :
+Format [Keep a Changelog](https://keepachangelog.com/) :
 
 ```markdown
-## [<version>] — <date YYYY-MM-DD>
+## [X.Y.Z] — YYYY-MM-DD
 
-### Ajouté
-- <feature 1>
-- <feature 2>
+### Added
+- <nouvelle feature>
 
-### Modifié
-- <changement 1>
+### Fixed
+- <bug corrigé>
 
-### Corrigé
-- <bug fix 1>
+### Changed
+- <modification>
 
-### Supprimé
-- <suppression si applicable>
+### Breaking
+- <breaking change si applicable>
 ```
 
-Les informations viennent de :
-- `git log --oneline` depuis le dernier tag.
-- `docs/issues.md` (issues fermées).
-
-### Étape 2 : Bump de version (SemVer)
+### 4. Build de production
 
 ```bash
-# Node
-npm version patch   # 1.0.0 → 1.0.1 (bug fix)
-npm version minor   # 1.0.0 → 1.1.0 (nouvelle feature)
-npm version major   # 1.0.0 → 2.0.0 (breaking change)
-
-# Python (pyproject.toml)
-# Modifier manuellement la version dans pyproject.toml
-
-# Demander à l'utilisateur si incertain :
-# Patch = bug fix, Minor = feature, Major = breaking change
-```
-
-### Étape 3 : Build de production
-
-```bash
-# Node
 npm run build
-
-# Python
+# ou
+go build ./...
+# ou
 python -m build
-
-# Go
-go build -ldflags="-s -w" -o dist/app ./cmd/...
-
-# Docker
-docker build -t <image>:<version> .
 ```
 
-### Étape 4 : Tag Git + push
+Capturer exit code. Si ECHEC → STOP, ne pas continuer le ship.
+
+### 5. Commit + tag Git
 
 ```bash
-# Commit final
-git add CHANGELOG.md package.json  # + autres fichiers de version
-git commit -m "chore: release v<version>"
-
-# Tag annoté
+git add CHANGELOG.md package.json  # ou les fichiers de version
+git commit -m "chore(release): v<version>"
 git tag -a v<version> -m "Release v<version>"
+```
 
+### 6. Push + déploiement (avec confirmation)
+
+**Toujours demander confirmation avant de pusher ou déployer.**
+
+```bash
 # Push
-git push origin main
-git push origin v<version>
-```
+git push origin main --tags
 
-**Git guardrails (règles non négociables) :**
-- Ne jamais forcer un push sur main (`git push --force`).
-- Ne jamais tagger une version sans que la CI soit PASS.
-- Ne jamais publier sans avoir demandé confirmation à l'utilisateur.
-
-### Étape 5 : Déploiement
-
-```bash
-# Vercel
+# Déploiement (exemples)
 vercel --prod
-
-# Railway
 railway up
-
-# Fly.io
 fly deploy
-
-# npm
-npm publish --access public
-
-# Docker Hub
-docker push <image>:<version>
-
-# GitHub Pages
-gh workflow run deploy.yml
-```
-
-### Étape 6 : Release GitHub
-
-Générer le corps de release :
-
-```markdown
-## 🚀 v<version> — <date>
-
-<résumé en 1-2 phrases>
-
-### ✨ Nouvelles features
-- <feature 1>
-- <feature 2>
-
-### 🐛 Bugs corrigés
-- <bug fix>
-
-### 📦 Installation
-```bash
-npm install <package>@<version>
-```
-
-### 📄 Changelog complet
-Voir [CHANGELOG.md](./CHANGELOG.md)
 ```
 
 ---
 
-## 📄 Livrables
+## 📋 Output attendu
 
-- `CHANGELOG.md` mis à jour
-- Version bumpée dans les fichiers de config
-- Tag Git `v<version>` poussé
-- Build de production
-- Release GitHub (si applicable)
-- URL de déploiement
+```
+## Ship — v<version>
+
+### Version
+- Type : patch / minor / major
+- Nouvelle version : <X.Y.Z>
+
+### CHANGELOG
+- ✅ Mis à jour pour v<version>
+
+### Build prod
+- ✅/❌ <commande> → exit code <N>
+
+### Git
+- ✅ Commit : chore(release): v<version>
+- ✅ Tag : v<version>
+- ✅/⏳ Push : effectué / en attente de confirmation
+
+### Déploiement
+- ✅/⏳ <cible> → déployé / en attente de confirmation
+
+### Verdict
+**LIVRÉ** – v<version> disponible.
+# ou
+**EN ATTENTE** – Confirmation utilisateur requise pour push/deploy.
+# ou
+**ECHEC** – <étape échouée : description>.
+```
 
 ---
 
-## 🔗 Après le ship
+## 🛡️ Règles
 
-- Utiliser `/project-review` pour analyser la qualité du code livré.
-- Ouvrir les issues de la prochaine itération.
-- Utiliser `/project-init` pour le prochain projet.
+- Ne jamais pusher ou déployer sans confirmation explicite de l'utilisateur.
+- Ne jamais shipper si les tests ne sont pas PASS.
+- Ne jamais modifier la version dans plusieurs fichiers sans les lister tous.
+- Si le build échoue, STOP — ne pas continuer vers le tag ou le push.

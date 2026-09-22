@@ -1,23 +1,23 @@
 ---
 name: project-review
-description: >
-  Effectue une revue complète d'un projet ou d'une PR : qualité du code, architecture, performance,
-  sécurité, et accessibilité. Produit un rapport structuré avec des recommandations priorisées.
-  Utiliser avant un merge, une release, ou quand l'utilisateur veut améliorer la qualité du code.
+description: >-
+  Revue complète du projet après livraison : qualité du code, architecture, performance,
+  sécurité et DX. Utiliser après project-ship pour identifier les dettes techniques,
+  les risques et les axes d'amélioration avant la prochaine itération.
 license: MIT
-version: 1.0.0
+version: "1.0.0"
 metadata:
   author: agtktID
   repo: https://github.com/agtktID/skill-verify
-  created: 2026-09-22
+  updated: 2026-09-22
   tags:
     - project
     - review
     - code-quality
+    - architecture
     - security
     - performance
-    - architecture
-    - matt-pocock
+    - dx
 allowed-tools:
   - Bash
   - Read
@@ -25,184 +25,147 @@ allowed-tools:
   - WebSearch
 ---
 
-# 🔍 Rôle du skill `project-review`
+# 🔍 Skill `project-review`
 
-Ce skill effectue une revue de code complète en 5 dimensions :
-
-1. **Qualité du code** — lisibilité, nommage, complexité, duplication.
-2. **Architecture** — structure, séparation des préoccupations, SOLID.
-3. **Performance** — algorithmes, requêtes N+1, mémoïsation, bundle size.
-4. **Sécurité** — injections, secrets exposés, dépendances vulnérables.
-5. **Accessibilité / DX** — README, types, commentaires, onboarding.
-
-Inspiré de Matt Pocock's `/improve-codebase-architecture` + `/code-review` +
-Superpowers `/systematic-debugging` + Trail of Bits security review.
+Skill de revue complète post-livraison. Il analyse la qualité du code, l'architecture,
+les performances, la sécurité et la DX, puis produit un rapport d'axes d'amélioration.
 
 ---
 
-## ✅ Quand utiliser ce skill
+## ✅ Quand utiliser
 
 Utilise `/project-review` quand :
 
-- Tu veux faire une revue avant de merger une PR.
-- Tu veux améliorer la qualité globale du projet.
-- Tu prépares un release public (open-source, npm, etc.).
-- Tu veux un rapport de dette technique.
+- Tu viens de shipper une version avec `project-ship`.
+- Tu veux identifier les dettes techniques avant la prochaine itération.
+- Tu veux un audit de sécurité ou de performance léger.
 
-**Ne pas utiliser pour :**
+Ne pas utiliser pour :
 
-- Reviewer une feature en cours de dev (utiliser `/project-build` TDD à la place).
-- Des projets avec moins de 100 lignes de code (trop petit pour une revue formelle).
+- Revues de PR (utilise les outils natifs Git/GitHub).
+- Revues en cours de développement (utilise `gauntlet-loop-dev` ou `verify`).
+
+**Précédent :** `project-ship`
 
 ---
 
-## 🧱 Pipeline de revue
+## 🔧 Pré-requis
+
+- Un projet livré (version taguée ou déployée).
+- Accès en lecture au code source.
+- Optionnel : outils d'analyse statique installés (`eslint`, `bandit`, `semgrep`, etc.).
+
+---
+
+## 🔁 Pipeline
 
 ```text
-/project-review [--scope code|arch|perf|security|all] [--path src/]
-    ↓
-[DIM 1] Qualité du code
-    → Complexité cyclomatique, nommage, duplication
-    ↓
-[DIM 2] Architecture
-    → Structure, dépendances, SOLID, couplage
-    ↓
-[DIM 3] Performance
-    → Algorithmes O(n²), requêtes DB, bundle, cache
-    ↓
-[DIM 4] Sécurité
-    → OWASP Top 10, secrets, dépendances CVE
-    ↓
-[DIM 5] Accessibilité / DX
-    → README, types, JSDoc/docstrings, onboarding
-    ↓
-[RAPPORT] Priorisé par criticité
-    → .verify/<ts>/review-report.md
+User → Skill project-review
+         ↓
+   1. Qualité du code (lint, complexité, duplication)
+   2. Architecture (cohérence, couplage, séparation des concerns)
+         ↓
+   3. Performance (bundle size, requêtes critiques, profil)
+   4. Sécurité (secrets, dépendances vulnérables, OWASP top 10)
+         ↓
+   5. DX (README, onboarding, tests, CI/CD)
+         ↓
+   Rapport avec axes CRITIQUE / MOYEN / FAIBLE
 ```
 
 ---
 
-## 🔁 Procédure pour l'agent
+## 📝 Procédure détaillée
 
-### Dimension 1 : Qualité du code
-
-Lire les fichiers sources et vérifier :
-
-| Critère | Signal d'alarme | Recommandation |
-|---------|----------------|----------------|
-| Fonctions longues | > 30 lignes | Extraire en sous-fonctions |
-| Nommage flou | `x`, `temp`, `data` | Nommer selon l'intention |
-| Duplication | 3+ copies d'un même bloc | Extraire en utilitaire |
-| Commentaires obsolètes | TODO anciens, code commenté | Supprimer ou résoudre |
-| Complexité cyclomatique | > 10 | Décomposer en fonctions |
+### 1. Qualité du code
 
 ```bash
+# Lint
+npm run lint 2>&1 | head -50
+# ou flake8, golangci-lint, etc.
+
 # Complexité cyclomatique (Node)
-npx complexity-report --format json src/
-
-# Duplication (Node)
-npx jscpd src/ --min-tokens 50
+npx complexity-report src/ 2>&1 | tail -20
 ```
 
-### Dimension 2 : Architecture
+Signaler :
+- Fichiers avec trop de responsabilités (> 300 lignes).
+- Fonctions trop longues ou trop complexes (complexity > 10).
+- Duplication de code évidente.
 
-1. Cartographier la structure : modules, services, couches.
-2. Vérifier les principes SOLID :
-   - **S** : chaque module a une seule responsabilité.
-   - **O** : ouvert à l'extension, fermé à la modification.
-   - **D** : dépendances vers des abstractions, pas des implémentations.
-3. Détecter le couplage fort (imports circulaires, dépendances directes de DB dans les routes).
-4. Proposer un refactor d'architecture si nécessaire.
+### 2. Architecture
 
-### Dimension 3 : Performance
+- Lire la structure des dossiers (`find . -type d -not -path '*/node_modules/*'`).
+- Vérifier la séparation des concerns (routes / logique métier / data).
+- Identifier le couplage fort ou les dépendances circulaires.
+
+### 3. Performance
+
+- Vérifier le bundle size si applicable (`du -sh dist/` ou équivalent).
+- Identifier les requêtes N+1 ou les boucles coûteuses dans le code.
+- Signaler les imports lourds ou les dépendances inutiles.
+
+### 4. Sécurité
 
 ```bash
-# Bundle size (Node)
-npm run build -- --analyze  # ou webpack-bundle-analyzer
+# Dépendances vulnérables (Node)
+npm audit --audit-level=moderate
 
-# Dépendances lourdes
-npx depcheck
+# Python
+pip-audit
 
-# Requêtes N+1 (patterns à détecter manuellement)
-grep -r 'findById' src/ | head -20
+# Secrets accidentels
+grep -r 'api_key\|secret\|password\|token' src/ --include='*.js' --include='*.py' | grep -v test
 ```
 
-Points à vérifier :
-- [ ] Pas de requêtes DB dans des boucles.
-- [ ] Mémoïsation des calculs coûteux.
-- [ ] Lazy loading des modules lourds.
-- [ ] Indexes DB sur les champs filtrés/triés.
+Signaler : secrets en clair, dépendances vulnérables, entrées non validées, CORS trop ouverts.
 
-### Dimension 4 : Sécurité
+### 5. DX (Developer Experience)
 
-```bash
-# Audit des dépendances
-npm audit
-pip audit
-go mod tidy && govulncheck ./...
+- README complet (installation, usage, contribution) ?
+- Tests suffisants (couverture ≥ 70%) ?
+- CI/CD configuré ?
+- Variables d'env documentées dans `.env.example` ?
 
-# Scan de secrets
-git secrets --scan  # ou truffleHog
-grep -r 'password\|secret\|token\|api_key' src/ --include='*.{js,ts,py,go}'
+---
 
-# SAST léger
-npx semgrep --config=auto src/
+## 📋 Output attendu
+
 ```
+## Revue — <nom du projet> v<version>
 
-OWASP Top 10 à vérifier :
-- [ ] Injection SQL / NoSQL (utilise des ORM ou des requêtes paramétrées).
-- [ ] Authentification défaillante (JWT, session, CSRF).
-- [ ] Exposition de données sensibles (logs, réponses API).
-- [ ] Contrôle d'accès manquant (routes non protégées).
-- [ ] Dépendances avec CVE connues (`npm audit --audit-level=high`).
+### Qualité du code
+- [CRITIQUE/MOYEN/FAIBLE] <problème>
 
-### Dimension 5 : Accessibilité / DX
+### Architecture
+- [CRITIQUE/MOYEN/FAIBLE] <observation>
 
-1. Vérifier le `README.md` :
-   - [ ] Description claire du projet.
-   - [ ] Instructions d'installation (< 5 commandes).
-   - [ ] Exemple d'usage.
-   - [ ] Badge de licence.
-2. Vérifier les types (TypeScript) :
-   - [ ] Pas de `any` non justifié.
-   - [ ] Types exportés pour l'API publique.
-3. Vérifier la documentation :
-   - [ ] JSDoc / docstrings sur les fonctions publiques.
-   - [ ] CONTRIBUTING.md pour les projets open-source.
+### Performance
+- [CRITIQUE/MOYEN/FAIBLE] <observation>
 
-### Rapport final
+### Sécurité
+- [CRITIQUE] <vulnérabilité ou secret détecté>
+- [MOYEN] <dépendance vulnérable>
 
-Générer `.verify/<ts>/review-report.md` :
+### DX
+- [MOYEN] <documentation manquante>
 
-```markdown
-# Rapport de revue — <timestamp>
+### Axes d'amélioration prioritaires
+1. [CRITIQUE] <action concrète>
+2. [MOYEN] <action>
+3. [FAIBLE] <action>
 
-## Score global
-| Dimension | Score | Statut |
-|-----------|-------|--------|
-| Code quality | 7/10 | ⚠️ |
-| Architecture | 8/10 | ✅ |
-| Performance | 6/10 | ⚠️ |
-| Sécurité | 9/10 | ✅ |
-| DX | 7/10 | ⚠️ |
-
-## Problèmes critiques (P0 — bloquer le merge)
-- ⛔ <problème 1>
-
-## Problèmes importants (P1 — corriger avant release)
-- ⚠️ <problème 2>
-
-## Suggestions (P2 — next iteration)
-- 💡 <suggestion 1>
-
-## Points positifs
-- ✅ <point fort 1>
+### Verdict
+**SAIN** – Aucun point critique, dette technique acceptable.
+# ou
+**ATTENTION** – X points critiques à traiter avant la prochaine itération.
 ```
 
 ---
 
-## 🔗 Après la revue
+## 🛡️ Règles
 
-- Problèmes P0 → utiliser `/project-build` pour corriger.
-- Tests manquants → utiliser `/project-test`.
-- Prêt à livrer → utiliser `/project-ship`.
+- Ne signaler que des problèmes concrets et actionnables, pas des opinions.
+- Ne jamais exécuter de commandes destructives lors de la revue.
+- Si un secret est détecté, STOP immédiat et signaler en priorité absolue.
+- Les recommandations doivent être classées par priorité (CRITIQUE / MOYEN / FAIBLE).

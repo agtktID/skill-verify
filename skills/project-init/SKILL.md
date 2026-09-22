@@ -1,23 +1,22 @@
 ---
 name: project-init
-description: >
-  Initialise un nouveau projet de zéro : brainstorming guidé, rédaction du PRD (Product Requirements Doc),
-  découpage en issues GitHub, scaffold de l'architecture, git init et configuration des outils de qualité
-  (lint, husky, pre-commit). Utiliser quand l'utilisateur démarre un nouveau projet ou une nouvelle feature majeure.
+description: >-
+  Initialise un nouveau projet de zéro : brainstorm structuré, PRD, découpage en issues,
+  scaffold du dépôt, git init et configuration de base. Utiliser en tout début de projet
+  avant project-build. Produit un dossier prêt à coder avec structure, README et issues.
 license: MIT
-version: 1.0.0
+version: "1.0.0"
 metadata:
   author: agtktID
   repo: https://github.com/agtktID/skill-verify
-  created: 2026-09-22
+  updated: 2026-09-22
   tags:
     - project
     - init
     - prd
     - scaffold
-    - planning
-    - matt-pocock
-    - gsd
+    - git
+    - brainstorm
 allowed-tools:
   - Bash
   - Read
@@ -25,181 +24,169 @@ allowed-tools:
   - WebSearch
 ---
 
-# 🚀 Rôle du skill `project-init`
+# 🚀 Skill `project-init`
 
-Ce skill transforme une idée brute en projet structuré, prêt à coder.
-Inspiré de Matt Pocock's `/to-prd` + `/to-issues` + Superpowers `/brainstorming` + GSD `/gsd-new-project`.
-
-Flux : **Idée → PRD → Issues → Scaffold → Git → Outils qualité**
+Skill d'initialisation de projet. Il structure le brainstorm, produit un PRD actionnable,
+découpe en issues et scaffold le dépôt Git prêt à coder.
 
 ---
 
-## ✅ Quand utiliser ce skill
+## ✅ Quand utiliser
 
 Utilise `/project-init` quand :
 
-- Tu démarres un nouveau projet (SaaS, API, CLI, Discord bot, jeu Unity, etc.).
-- Tu veux structurer une idée avant de coder (éviter le "vibe coding").
-- Tu veux des issues GitHub prêtes avec des critères d'acceptation.
-- Tu veux une architecture initiale et des outils de qualité configurés.
+- Tu démares un nouveau projet (SaaS, bot, CLI, jeu, API, etc.) de zéro.
+- Tu veux un PRD structuré avant de commencer à coder.
+- Tu veux que le dépôt soit scaffoldé et versionné dès le départ.
 
-**Ne pas utiliser pour :**
+Ne pas utiliser pour :
 
-- Ajouter une feature à un projet existant (utiliser `/project-build`).
-- Quand le projet est déjà initialisé et scaffoldé.
+- Un projet déjà existant (utilise `project-build` ou `project-review` à la place).
+- Des tâches d'une feature isolée (utilise `project-build`).
+
+**Suivant dans la suite :** `project-build`
 
 ---
 
 ## 🔧 Pré-requis
 
-- Git installé.
-- Node, Python, Go, ou autre runtime selon le type de projet.
-- Optionnel : accès à l'API GitHub pour créer les issues automatiquement.
+- Une idée ou un énoncé de départ (même vague).
+- Git installé localement.
+- Optionnel : stack et contraintes techniques connues.
 
 ---
 
-## 🧱 Pipeline d'initialisation
+## 🔁 Pipeline
 
 ```text
-Idée utilisateur
-    ↓
-[PHASE 1] Brainstorming guidé (questions socratiques)
-    ↓
-[PHASE 2] Rédaction du PRD (Product Requirements Doc)
-    → docs/prd.md
-    ↓
-[PHASE 3] Découpage en issues (acceptance criteria)
-    → docs/issues.md
-    ↓
-[PHASE 4] Scaffold de l'architecture
-    → structure de fichiers, README, .gitignore
-    ↓
-[PHASE 5] Git init + configuration qualité
-    → lint, typecheck, pre-commit hooks
-    ↓
-Projet prêt pour /project-build
+User → Skill project-init
+         ↓
+   1. Brainstorm guidé (5 questions clés)
+   2. PRD : objectif, utilisateurs, features prioritaires, hors-scope
+         ↓
+   3. Découpage en issues/tâches
+   4. Scaffold (structure de dossiers + fichiers de base)
+         ↓
+   5. git init + premier commit
+         ↓
+   Livraison : README.md + PRD.md + issues listées + dépôt initialisé
 ```
 
 ---
 
-## 🔁 Procédure pour l'agent
+## 📝 Procédure détaillée
 
-### Phase 1 : Brainstorming guidé (Mode Socratique)
+### 1. Brainstorm guidé
 
-Poser ces questions UNE par UNE (ne pas toutes les poser d'un coup) :
+Poser 5 questions clés à l'utilisateur :
 
-1. **Quel problème ce projet résout-il ?** (en 1 phrase)
-2. **Qui sont les utilisateurs cibles ?** (persona principal)
-3. **Quelle est la feature #1 qui doit absolument marcher ?** (le cœur du produit)
-4. **Quel stack technique utilises-tu ?** (ou lequel veux-tu recommander ?)
-5. **Quelle est ta définition du succès à J+30 ?** (métrique concrète)
+1. Quel problème ce projet résout-il ?
+2. Qui sont les utilisateurs cibles ?
+3. Quelles sont les 3 features minimum pour que ça soit utile ?
+4. Quelle stack/langage/framework ?
+5. Quelles sont les contraintes (deadline, budget, équipe) ?
 
-Après chaque réponse, reformuler pour confirmer la compréhension.
+Si l'utilisateur donne peu de détails, inférer raisonnablement et valider avant de continuer.
 
-### Phase 2 : Rédaction du PRD
+### 2. PRD (Product Requirements Document)
 
-Générer `docs/prd.md` avec la structure suivante :
+Produire `docs/PRD.md` avec :
 
 ```markdown
-# PRD — <Nom du projet>
+# PRD — <nom du projet>
 
-## Résumé
-- Problème : <une phrase>
-- Solution : <une phrase>
-- Utilisateurs cibles : <persona>
+## Objectif
+<problème résolu en 2 phrases>
 
-## Objectifs (SMART)
-1. <Objectif 1 avec métrique>
-2. <Objectif 2 avec métrique>
+## Utilisateurs cibles
+<description>
 
-## Features prioritaires (MoSCoW)
-### Must Have
-- <feature 1>
-- <feature 2>
-### Should Have
-- <feature 3>
-### Could Have
-- <feature 4>
-### Won't Have (v1)
-- <feature 5>
+## Features prioritaires (MVP)
+1. <feature 1>
+2. <feature 2>
+3. <feature 3>
 
-## Architecture technique
-- Stack : <liste>
-- Structure : <arborescence>
-- APIs externes : <liste>
+## Hors-scope (v1)
+- <ce qui est exclu volontairement>
+
+## Stack
+- Langage : <>
+- Framework : <>
+- Infra : <>
 
 ## Critères de succès
-- <métrique 1>
-- <métrique 2>
-
-## Risques identifiés
-- <risque 1 + mitigation>
+- <mesurable 1>
+- <mesurable 2>
 ```
 
-### Phase 3 : Découpage en issues
+### 3. Découpage en issues
 
-Générer `docs/issues.md` avec :
+Produire `docs/ISSUES.md` ou les afficher en console avec :
 
-```markdown
-## Issue #1 — <titre court>
-**Type:** feat / fix / chore
-**Priorité:** P0 / P1 / P2
-**Estimation:** S (< 2h) / M (2-8h) / L (> 8h)
+- Titre, description courte, critères d'acceptation, priorité (P0/P1/P2).
+- Une issue = une feature ou tâche livrable et testable.
 
-**Description:**
-<contexte et objectif>
+### 4. Scaffold du projet
 
-**Acceptance Criteria:**
-- [ ] <critère 1>
-- [ ] <critère 2>
-- [ ] <critère 3>
-
-**Dépendances:** <issues précédentes si applicable>
-```
-
-### Phase 4 : Scaffold de l'architecture
-
-1. Créer la structure de fichiers selon le stack détecté.
-2. Générer le `README.md` avec : description, installation, usage, contribution.
-3. Créer le `.gitignore` adapté au stack.
-4. Créer le fichier de configuration principal (ex. `package.json`, `pyproject.toml`, `go.mod`).
-
-### Phase 5 : Git init + outils qualité
+Créer la structure de base via Bash :
 
 ```bash
-# Git
-git init
-git add .
-git commit -m "chore: initial project scaffold"
-
-# Node : lint + pre-commit
-npm install --save-dev eslint prettier husky lint-staged
-npx husky init
-
-# Python : lint + pre-commit
-pip install flake8 black pre-commit
-pre-commit install
-
-# Go : lint
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+mkdir -p src tests docs .github/workflows
+touch README.md .gitignore .env.example
 ```
 
-5. Créer le fichier `.verify/pending-task` pour déclencher le hook verify au prochain Stop.
+Contenu minimal de `README.md` :
+- Nom du projet, description, installation, usage, licence.
+
+Contenu minimal de `.gitignore` adapté à la stack détectée.
+
+### 5. Git init et premier commit
+
+```bash
+git init
+git add .
+git commit -m "chore: initial scaffold — <nom du projet>"
+```
+
+Si un remote est fourni par l'utilisateur :
+
+```bash
+git remote add origin <url>
+git push -u origin main
+```
 
 ---
 
-## 📄 Livrables
+## 📋 Output attendu
 
-- `docs/prd.md` — Product Requirements Doc
-- `docs/issues.md` — Liste des issues avec acceptance criteria
-- Structure de fichiers scaffoldée
-- `README.md` du projet
-- `.gitignore`
-- Outils de qualité configurés (lint, pre-commit)
-- Premier commit Git propre
+```
+## Projet initialisé : <nom>
+
+### Fichiers créés
+- README.md
+- docs/PRD.md
+- docs/ISSUES.md
+- .gitignore
+- .env.example
+- src/ tests/ docs/ .github/workflows/
+
+### Issues (MVP)
+1. [P0] <feature 1> — <critères>
+2. [P0] <feature 2> — <critères>
+3. [P1] <feature 3> — <critères>
+
+### Git
+- ✅ git init → OK
+- ✅ Premier commit : chore: initial scaffold
+
+### Prochaine étape
+Lancer /project-build pour implémenter la première feature.
+```
 
 ---
 
-## 🔗 Prochaine étape
+## 🛡️ Règles
 
-Une fois le projet initialisé : utiliser `/project-build` pour implémenter les features.
+- Ne jamais créer de fichiers hors du dossier projet sans confirmation.
+- Ne jamais pousser sur un remote sans confirmation explicite.
+- Si la stack est inconnue, proposer 2-3 options et attendre le choix de l'utilisateur.
