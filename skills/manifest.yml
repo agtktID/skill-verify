@@ -1,8 +1,14 @@
-version: "0.1"
+version: "0.2"
 project: skill-verify
+description: >
+  Collection de skills de vérification, développement agentique, Unity, Indagis
+  et architecture de skills pour agents IA. Compatible Claude Code, Hermes et decode.
+
 skills:
   - name: verify
     path: skills/verify
+    version: "1.1.0"
+    description: Mode de vérification persistant avec gates, logs et rapport PASS/ECHEC.
     targets:
       - claude-code
       - agent-skills-compatible
@@ -10,23 +16,64 @@ skills:
       - bash
       - node
       - playwright-optional
+
+  - name: verify-feature-end2end
+    path: skills/verify-feature-end2end
+    version: "1.0.0"
+    description: Pipeline e2e — démarre l'app, exerce la feature, CI locale, puis PR gate.
+    targets:
+      - claude-code
+      - agent-skills-compatible
+    verification:
+      - bash
+      - playwright
+      - curl
+
+  - name: verify-context-health
+    path: skills/verify-context-health
+    version: "1.0.0"
+    description: Audit santé du contexte agent — token budget, progressive disclosure, skills inutilisées.
+    targets:
+      - claude-code
+      - agent-skills-compatible
+      - hermes
+
+  - name: verify-unity-playmode
+    path: skills/verify-unity-playmode
+    version: "1.0.0"
+    description: Vérification Unity CLI — tests EditMode/PlayMode, build batchmode, rapport.
+    targets:
+      - claude-code
+      - agent-skills-compatible
+      - unity
+    verification:
+      - unity-cli
+      - bash
+
   - name: skill-architect
     path: skills/skill-architect
+    version: "1.0.0"
     targets:
       - claude-code
       - agent-skills-compatible
+
   - name: gauntlet-loop-dev
     path: skills/gauntlet-loop-dev
+    version: "1.0.0"
     targets:
       - claude-code
       - agent-skills-compatible
+
   - name: indagis-feature-builder
     path: skills/indagis-feature-builder
+    version: "1.0.0"
     targets:
       - claude-code
       - agent-skills-compatible
+
   - name: unity-gamedev
     path: skills/unity-gamedev
+    version: "1.0.0"
     targets:
       - claude-code
       - agent-skills-compatible
