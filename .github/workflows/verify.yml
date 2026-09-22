@@ -30,12 +30,14 @@ jobs:
           test -f SECURITY.md
           test -f CHANGELOG.md
           test -f skills/manifest.yml
+          test -f agents.yml
           test -f assets/skill-verify-banner.svg
-          for skill_dir in skills/*; do
-            test -f "$skill_dir/SKILL.md"
-            name=$(awk -F': ' '/^name:/{print $2; exit}' "$skill_dir/SKILL.md" | tr -d '\"' | tr -d "'")
+          for skill_dir in skills/*/; do
+            [ -d "$skill_dir" ] || continue
+            test -f "${skill_dir}SKILL.md"
+            name=$(awk -F': ' '/^name:/{print $2; exit}' "${skill_dir}SKILL.md" | tr -d '\"' | tr -d "'" | xargs)
             test "$name" = "$(basename "$skill_dir")"
-            description=$(awk -F': ' '/^description:/{print $2; exit}' "$skill_dir/SKILL.md")
+            description=$(awk -F': ' '/^description:/{print $2; exit}' "${skill_dir}SKILL.md" | xargs)
             test -n "$description"
           done
       - name: Validate JSON
@@ -52,15 +54,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          while IFS= read -r -d '' file; do node --check "$file"; done < <(find . -name '*.js' -o -name '*.mjs' -not -path './.git/*' -print0)
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(find . \( -name '*.js' -o -name '*.mjs' \) -not -path './.git/*' -print0)
       - name: Validate SVG
         shell: bash
         run: |
           set -euo pipefail
           grep -q '<svg' assets/skill-verify-banner.svg
           grep -q '</svg>' assets/skill-verify-banner.svg
+      - name: Validate manifest script
+        shell: bash
+        run: bash scripts/validate-manifest.sh
       - name: Validate critical README links
         shell: bash
         run: |
           set -euo pipefail
-          for path in CONTRIBUTING.md LICENSE assets/skill-verify-banner.svg skills/verify/SKILL.md skills/skill-architect/SKILL.md skills/gauntlet-loop-dev/SKILL.md skills/indagis-feature-builder/SKILL.md skills/unity-gamedev/SKILL.md; do test -e "$path"; done
+          for path in \
+            CONTRIBUTING.md \
+            LICENSE \
+            assets/skill-verify-banner.svg \
+            agents.yml \
+            scripts/validate-manifest.sh \
+            skills/verify/SKILL.md \
+            skills/skill-architect/SKILL.md \
+            skills/gauntlet-loop-dev/SKILL.md \
+            skills/indagis-feature-builder/SKILL.md \
+            skills/unity-gamedev/SKILL.md \
+            skills/verify-feature-end2end/SKILL.md \
+            skills/verify-context-health/SKILL.md \
+            skills/verify-unity-playmode/SKILL.md \
+            skills/project-init/SKILL.md \
+            skills/project-build/SKILL.md \
+            skills/project-test/SKILL.md \
+            skills/project-ship/SKILL.md \
+            skills/project-review/SKILL.md; do
+            test -e "$path" || { echo "❌ Manquant: $path"; exit 1; }
+            echo "✅ $path"
+          done

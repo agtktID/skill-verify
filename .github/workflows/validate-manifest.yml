@@ -1,0 +1,66 @@
+name: Validate manifest YAML
+
+on:
+  push:
+    paths:
+      - 'skills/manifest.yml'
+      - 'skills/**/SKILL.md'
+      - '.github/workflows/validate-manifest.yml'
+  pull_request:
+    paths:
+      - 'skills/manifest.yml'
+      - 'skills/**/SKILL.md'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-manifest:
+    name: Validate manifest.yml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate YAML syntax
+        run: yq eval '.' skills/manifest.yml > /dev/null
+
+      - name: Run manifest validation script
+        run: bash scripts/validate-manifest.sh
+
+      - name: Check all manifest skills have SKILL.md
+        run: |
+          set -euo pipefail
+          count=0
+          errors=0
+          while IFS= read -r skill_path; do
+            if [ ! -f "$skill_path/SKILL.md" ]; then
+              echo "❌ SKILL.md manquant pour: $skill_path"
+              errors=$((errors+1))
+            else
+              echo "✅ $skill_path/SKILL.md OK"
+            fi
+            count=$((count+1))
+          done < <(yq eval '.skills[].path' skills/manifest.yml)
+          echo ""
+          echo "Total skills vérifiés : $count | Erreurs : $errors"
+          [ "$errors" -eq 0 ] || exit 1
+
+      - name: Check skills in manifest match directories
+        run: |
+          set -euo pipefail
+          errors=0
+          for skill_dir in skills/*/; do
+            [ -f "$skill_dir/SKILL.md" ] || continue
+            skill_name=$(basename "$skill_dir")
+            if ! yq eval '.skills[].name' skills/manifest.yml | grep -qx "$skill_name"; then
+              echo "⚠️  Skill '$skill_name' présent sur disque mais absent du manifest"
+              errors=$((errors+1))
+            fi
+          done
+          [ "$errors" -eq 0 ] || exit 1

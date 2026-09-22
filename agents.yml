@@ -1,0 +1,134 @@
+# agents.yml — Configuration des agents compatibles avec skill-verify
+# Ce fichier déclare les runtimes supportés et les profils d'agent recommandés.
+
+version: "1.0"
+project: skill-verify
+
+# ─── RUNTIMES COMPATIBLES ──────────────────────────────────────────────
+runtimes:
+  - name: claude-code
+    description: Claude Code (Anthropic) — agent de code avec support des SKILL.md
+    skill_path: .claude/skills/
+    invoke_prefix: "/"
+    notes: >
+      Copier les SKILL.md dans .claude/skills/ de ton projet.
+      Activer avec /nom-du-skill dans le chat Claude Code.
+
+  - name: hermes
+    description: Hermes Agent (NousResearch) — supporte les skills via profiles
+    skill_path: .hermes/skills/
+    invoke_prefix: "skill:"
+    notes: >
+      Déclarer les skills dans le profil Hermes. Utiliser skill:nom-du-skill.
+
+  - name: decode
+    description: decode agent — compatible SKILL.md avec frontmatter YAML
+    skill_path: .decode/skills/
+    invoke_prefix: "/"
+    notes: >
+      Même structure que Claude Code. Copier les SKILL.md dans .decode/skills/.
+
+  - name: agent-skills-compatible
+    description: Tout agent compatible avec le format SKILL.md (frontmatter YAML + Markdown)
+    skill_path: .agent/skills/
+    invoke_prefix: "/"
+    notes: >
+      Format générique. Le SKILL.md doit avoir frontmatter YAML (name, description, version,
+      allowed-tools) et le corps en Markdown avec les sections Procedure, Rules, Output.
+
+# ─── PROFILS D'AGENT RECOMMANDÉS ───────────────────────────────────────
+profiles:
+  - name: verification-pipeline
+    description: Pipeline de vérification complet — build, test, e2e, rapport
+    skills:
+      - verify
+      - verify-feature-end2end
+      - verify-context-health
+      - gauntlet-loop-dev
+    use_case: >-
+      Utiliser ce profil pour vérifier une feature de bout en bout avant merge.
+      Chaîner : gauntlet-loop-dev → verify → verify-feature-end2end.
+
+  - name: project-suite
+    description: Kit complet 5-skills pour créer et livrer un projet de A à Z
+    skills:
+      - project-init
+      - project-build
+      - project-test
+      - project-ship
+      - project-review
+    use_case: >-
+      Utiliser ce profil pour un projet de zéro à la livraison.
+      Suivre l'ordre déclaré : init → build → test → ship → review.
+
+  - name: unity-dev
+    description: Développement Unity avec vérification PlayMode intégrée
+    skills:
+      - unity-gamedev
+      - verify-unity-playmode
+      - verify
+    use_case: >-
+      Utiliser ce profil pour développer et vérifier un projet Unity.
+      unity-gamedev génère la feature, verify-unity-playmode valide les tests et le build.
+
+  - name: full-stack
+    description: Profil complet — tous les skills actifs
+    skills:
+      - project-init
+      - project-build
+      - project-test
+      - project-ship
+      - project-review
+      - verify
+      - verify-feature-end2end
+      - verify-context-health
+      - verify-unity-playmode
+      - gauntlet-loop-dev
+      - indagis-feature-builder
+      - skill-architect
+      - unity-gamedev
+    use_case: >-
+      Profil de référence pour voir tous les skills disponibles.
+      En pratique, activer uniquement les skills nécessaires pour économiser le contexte.
+
+# ─── DÉPENDANCES ENTRE SKILLS ──────────────────────────────────────────
+dependencies:
+  - skill: verify-feature-end2end
+    requires: [verify]
+    optional: [gauntlet-loop-dev]
+    description: verify-feature-end2end étend verify avec un pipeline e2e complet
+
+  - skill: verify-unity-playmode
+    requires: [verify]
+    optional: [unity-gamedev]
+    description: verify-unity-playmode est la couche Unity de verify
+
+  - skill: verify-context-health
+    requires: []
+    optional: [skill-architect]
+    description: verify-context-health est indépendant mais s'utilise bien avec skill-architect
+
+  - skill: project-build
+    requires: [project-init]
+    optional: [gauntlet-loop-dev, verify]
+    description: project-build suit project-init dans la suite projet
+
+  - skill: project-test
+    requires: [project-build]
+    optional: [verify, verify-feature-end2end]
+    description: project-test suit project-build
+
+  - skill: project-ship
+    requires: [project-test]
+    optional: [verify]
+    description: project-ship suit project-test
+
+  - skill: project-review
+    requires: [project-ship]
+    optional: [verify-context-health]
+    description: project-review clôt la suite projet
+
+  - skill: indagis-feature-builder
+    requires: []
+    optional: [verify, gauntlet-loop-dev]
+    description: indagis-feature-builder peut être utilisé seul ou combiné avec verify
