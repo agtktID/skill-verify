@@ -1,36 +1,33 @@
 ---
 name: verify-unity-playmode
 description: >
-  Vérifie un projet Unity via la CLI : exécute les tests EditMode et PlayMode, build le projet en
-  batchmode, et optionnellement lance un scénario de playmode ou une scène spécifique pour confirmer
-  le comportement d'une feature avant merge ou déploiement.
+  Vérifie un projet Unity via CLI : exécute les tests EditMode et PlayMode, build le projet en batchmode,
+  et valide qu'une scène ou une feature Unity fonctionne avant merge ou déploiement.
+  Produit un rapport .verify/<timestamp>/unity-verify-report.md avec verdict clair.
 license: MIT
-version: 1.0.0
+version: "1.0.0"
 metadata:
   author: agtktID
   repo: https://github.com/agtktID/skill-verify
-  created: 2026-09-22
+  updated: 2026-09-22
   tags:
+    - verify
     - unity
     - gamedev
-    - verify
     - playmode
     - editmode
-    - ci
+    - cli
+    - build
+    - anti-hallucination
 allowed-tools:
   - Bash
   - Read
   - Write
 ---
 
-# 🎯 Rôle du skill `verify-unity-playmode`
+# 🎮 Skill `verify-unity-playmode`
 
-Ce skill orchestre une boucle de vérification dédiée aux projets Unity :
-
-1. **Tests EditMode** : vérifie la logique pure (composants, systèmes, utilitaires).
-2. **Tests PlayMode** : vérifie le comportement en conditions de jeu réelles.
-3. **Build** : compile le projet en batchmode pour détecter les erreurs de compilation.
-4. **Rapport** : génère `.verify/<timestamp>/unity-report.md` avec verdict PASS / ECHEC / PARTIEL.
+Skill de vérification pour projets Unity. Il force l'agent à **prouver via Unity CLI** que les tests passent et que le projet se build correctement avant de valider une feature ou un merge.
 
 ---
 
@@ -38,69 +35,70 @@ Ce skill orchestre une boucle de vérification dédiée aux projets Unity :
 
 Utilise `/verify-unity-playmode` quand :
 
-- Tu viens d'ajouter ou de modifier une feature Unity (mécanique de jeu, UI, système).
-- Tu veux valider le comportement en PlayMode avant de fusionner une branche.
-- Tu veux t'assurer que le build compile sans erreur après une modification.
-- Tu travailles avec le skill `unity-gamedev` et tu veux une couche de QA dédiée.
+- Tu ajoutes ou modifies une feature dans un projet Unity (gameplay, UI, scripts, prefabs).
+- Tu veux vérifier que les tests EditMode et/ou PlayMode passent.
+- Tu veux un build de validation avant de merger ou de déployer.
+- Tu travailles avec le skill `unity-gamedev` et veux une couche de QA à la fin.
 
-**Ne pas utiliser pour :**
+Ne pas utiliser pour :
 
-- Projets non-Unity (utiliser `/verify` ou `/verify-feature-end2end` à la place).
-- Quand Unity CLI (batchmode) n'est pas disponible dans l'environnement.
+- Projets non-Unity (utilise `verify` ou `verify-feature-end2end`).
+- Environnements sans Unity CLI installé (`unity` ou `Unity.exe` dans le PATH).
 
 ---
 
 ## 🔧 Pré-requis
 
-- Unity Editor installé avec accès CLI (commande `unity` ou chemin complet vers l'exécutable).
-- Projet Unity structuré avec un Assembly Definition (`.asmdef`) pour les tests.
-- Dossier de tests présent : `Assets/Tests/EditMode/` et/ou `Assets/Tests/PlayMode/`.
-- Optionnel : script de scène personnalisé dans `skills/verify-unity-playmode/scripts/`.
+- Unity CLI installé et accessible (`unity -version` retourne un résultat).
+- Un projet Unity valide avec un `Assets/` et un `ProjectSettings/`.
+- Optionnel : tests EditMode dans `Assets/Tests/EditMode/`.
+- Optionnel : tests PlayMode dans `Assets/Tests/PlayMode/`.
+- Optionnel : script `skills/verify-unity-playmode/scripts/unity-verify.sh` pour encapsuler les commandes.
+
+Si Unity CLI n'est pas disponible → gate BLOQUÉ, afficher l'erreur.
 
 ---
 
-## 🧱 Architecture de la boucle Unity
+## 🧱 Pipeline de vérification
 
 ```text
-User → /verify-unity-playmode
+User → Claude Code + Skill verify-unity-playmode
          ↓
-   1. Vérification de l'environnement (Unity CLI disponible ?)
+   1. Vérifier Unity CLI disponible
+   2. Lancer tests EditMode
+   3. Lancer tests PlayMode (si présents)
          ↓
-   2. Tests EditMode (unity -runTests -testPlatform EditMode)
+   4. Build batchmode (si demandé)
          ↓
-   3. Tests PlayMode (unity -runTests -testPlatform PlayMode)
+   5. Verdict PASS/ECHEC/PARTIEL/BLOQUE
          ↓
-   4. Build batchmode (unity -quit -batchmode -buildTarget ...)
-         ↓
-   5. Optionnel : lancement d'une scène spécifique et vérification des logs
-         ↓
-   6. Rapport .verify/<timestamp>/unity-report.md
-         ↓
-   Verdict: PASS / ECHEC / PARTIEL / BLOQUÉ
+   .verify/<timestamp>/unity-verify-report.md
 ```
 
 ---
 
-## 🔁 Procédure pour l'agent
+## 📜 Procédure détaillée
 
-### Étape 1 : Vérification de l'environnement
+### 1. Vérification de l'environnement
 
-1. Vérifier que Unity CLI est disponible :
-   ```bash
-   unity -version
-   # ou
-   /Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity -version
-   ```
-2. Détecter la version du projet Unity (fichier `ProjectSettings/ProjectVersion.txt`).
-3. Si Unity CLI n'est pas trouvé, afficher un message d'erreur et indiquer à l'utilisateur
-   comment configurer le chemin, puis retourner le verdict BLOQUÉ.
+```bash
+unity -version
+# ou sur Windows :
+# "C:/Program Files/Unity/Hub/Editor/<version>/Editor/Unity.exe" -version
+```
 
-### Étape 2 : Tests EditMode
+Si Unity CLI n'est pas dans le PATH, vérifier les chemins standards :
+
+- macOS : `/Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity`
+- Linux : `~/Unity/Hub/Editor/<version>/Editor/Unity`
+- Windows : `C:/Program Files/Unity/Hub/Editor/<version>/Editor/Unity.exe`
+
+### 2. Tests EditMode
 
 ```bash
 unity \
   -runTests \
-  -testPlatform EditMode \
+  -testPlatform editmode \
   -projectPath . \
   -testResults .verify/<ts>/editmode-results.xml \
   -logFile .verify/<ts>/editmode.log \
@@ -108,15 +106,15 @@ unity \
   -nographics
 ```
 
-1. Analyser `.verify/<ts>/editmode-results.xml` : compter PASS / FAIL / SKIP.
-2. Si des tests échouent, afficher les noms des tests en échec et les messages d'erreur.
+- Gate PASS si exit code 0.
+- Gate ECHEC si exit code non nul → lire `.verify/<ts>/editmode.log`.
 
-### Étape 3 : Tests PlayMode
+### 3. Tests PlayMode (si présents)
 
 ```bash
 unity \
   -runTests \
-  -testPlatform PlayMode \
+  -testPlatform playmode \
   -projectPath . \
   -testResults .verify/<ts>/playmode-results.xml \
   -logFile .verify/<ts>/playmode.log \
@@ -124,10 +122,12 @@ unity \
   -nographics
 ```
 
-1. Analyser `.verify/<ts>/playmode-results.xml` : compter PASS / FAIL / SKIP.
-2. Si des tests PlayMode échouent, les lister avec leurs messages d'erreur.
+- Si pas de tests PlayMode → gate SKIP (ne pas compter comme ECHEC).
+- Gate PASS si exit code 0.
 
-### Étape 4 : Build batchmode
+### 4. Build batchmode (optionnel)
+
+Si l'utilisateur demande un build de validation :
 
 ```bash
 unity \
@@ -135,79 +135,71 @@ unity \
   -batchmode \
   -nographics \
   -projectPath . \
-  -buildTarget StandaloneWindows64 \
+  -buildTarget <StandaloneWindows64|StandaloneOSX|Android|WebGL> \
+  -buildPath .verify/<ts>/build/ \
   -logFile .verify/<ts>/build.log
 ```
 
-> **Note** : adapter `-buildTarget` selon la plateforme cible
-> (`StandaloneLinux64`, `StandaloneOSX`, `Android`, `WebGL`, etc.).
+- Gate PASS si exit code 0 et dossier `.verify/<ts>/build/` non vide.
+- Gate ECHEC sinon.
 
-1. Vérifier l'exit code de la commande Unity.
-2. Analyser `.verify/<ts>/build.log` : détecter les erreurs de compilation.
+### 5. Verdict et rapport
 
-### Étape 5 (optionnel) : Lancement d'une scène spécifique
+Verdicts possibles :
 
-Si un script de scène est présent dans `skills/verify-unity-playmode/scripts/run-scene.sh` :
-
-```bash
-bash skills/verify-unity-playmode/scripts/run-scene.sh <SceneName> .verify/<ts>/scene.log
-```
-
-1. Analyser `.verify/<ts>/scene.log` pour les erreurs ou exceptions.
-2. Vérifier les comportements attendus (ex. absence de NullReferenceException).
-
-### Étape 6 : Synthèse et verdict
-
-1. Calculer le verdict global :
-   - **PASS** : tests EditMode PASS, tests PlayMode PASS, build OK.
-   - **ECHEC** : au moins un test critique FAIL ou build échoué.
-   - **PARTIEL** : build OK mais des tests SKIP ou warnings non bloquants.
-   - **BLOQUÉ** : Unity CLI non disponible ou erreur de configuration.
-2. Compléter `.verify/<ts>/unity-report.md`.
+- **PASS** : tous les tests PASS, build OK (si demandé).
+- **ECHEC** : au moins un test ECHEC ou build ECHEC.
+- **PARTIEL** : tests PASS mais warnings importants dans les logs.
+- **BLOQUÉ** : Unity CLI non disponible ou projet non valide.
 
 ---
 
-## 📜 Format du rapport `unity-report.md`
+## 📄 Format du rapport
 
 ```markdown
-MODE: VERIFY UNITY
+MODE: VERIFY-UNITY-PLAYMODE
 
-## Projet
-- Nom: <nom du projet Unity>
+## Contexte
+- Projet Unity: <chemin>
 - Version Unity: <version>
-- Build target: <plateforme>
+- Feature vérifiée: <description>
 
-## Tests EditMode
-- PASS: <nombre>
-- FAIL: <nombre>
-- SKIP: <nombre>
-- Logs: .verify/<ts>/editmode.log
+## Gates
+- ✅/❌ Unity CLI disponible → <version ou erreur>
+- ✅/❌ Tests EditMode → <nb tests PASS / nb total>
+- ✅/⏭️/❌ Tests PlayMode → <nb tests PASS / nb total ou SKIP>
+- ✅/❌/⏭️ Build batchmode → <target ou SKIP>
 
-## Tests PlayMode
-- PASS: <nombre>
-- FAIL: <nombre>
-- SKIP: <nombre>
-- Logs: .verify/<ts>/playmode.log
-
-## Build
-- Statut: PASS / ECHEC
-- Logs: .verify/<ts>/build.log
-
-## Scène (optionnel)
-- Scène testée: <nom>
-- Erreurs: <liste ou "Aucune">
+## Logs
+- .verify/<ts>/editmode.log
+- .verify/<ts>/editmode-results.xml
+- .verify/<ts>/playmode.log (si applicable)
+- .verify/<ts>/build.log (si applicable)
 
 ## Verdict
-**PASS** – Tous les critères Unity sont remplis.
-
-## Prochaines étapes
-- <liste des actions>
+**PASS** – Tous les critères sont remplis.
+# ou
+**ECHEC** – <gate échouée> : <description de l'erreur>.
+# ou
+**BLOQUÉ** – Unity CLI non disponible : <message d'erreur>.
 ```
 
 ---
 
-## 🔗 Voir aussi
+## 🔗 Intégration avec les autres skills
 
-- `unity-gamedev` : skill de développement Unity complet.
-- `verify` : boucle de vérification générique (non-Unity).
-- `gauntlet-loop-dev` : orchestration de gates de qualité.
+Ce skill est conçu pour fonctionner avec :
+
+- `unity-gamedev` : pour générer ou modifier les scripts/prefabs Unity avant vérification.
+- `verify` : comme gate de vérification générale si Unity ne suffit pas.
+- `project-ship` : avant le ship final d'une version du jeu.
+
+---
+
+## 🛡️ Règles anti-hallucination
+
+- Ne jamais déclarer les tests PASS sans avoir lu l'exit code de Unity CLI.
+- Toujours capturer les logs complets dans `.verify/<ts>/`.
+- Si Unity CLI retourne un exit code non nul, afficher les dernières lignes du log.
+- Ne jamais simuler les résultats des tests ou du build.
+- Si les tests PlayMode sont absents, déclarer SKIP (pas ECHEC).
