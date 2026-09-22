@@ -1,14 +1,18 @@
-version: "0.2"
+version: "0.3"
 project: skill-verify
 description: >
-  Collection de skills de vérification, développement agentique, Unity, Indagis
-  et architecture de skills pour agents IA. Compatible Claude Code, Hermes et decode.
+  Collection de skills de vérification et de développement agentique pour Claude Code, Hermes et decode.
+  Comprend le kit complet 5-skills pour créer, développer, tester, livrer et reviewer un projet de A à Z,
+  plus les skills de vérification automatique avec hooks, scripts et rapports structurés.
+
+# ─── SKILLS DE VÉRIFICATION ───────────────────────────────────────────
 
 skills:
   - name: verify
     path: skills/verify
     version: "1.1.0"
     description: Mode de vérification persistant avec gates, logs et rapport PASS/ECHEC.
+    category: verification
     targets:
       - claude-code
       - agent-skills-compatible
@@ -16,11 +20,18 @@ skills:
       - bash
       - node
       - playwright-optional
+    scripts:
+      - skills/verify/scripts/check.sh
+      - skills/verify/scripts/ci.sh
+      - skills/verify/scripts/run-verify.sh
+    hooks:
+      - skills/verify/hooks/post-task.sh
 
   - name: verify-feature-end2end
     path: skills/verify-feature-end2end
     version: "1.0.0"
     description: Pipeline e2e — démarre l'app, exerce la feature, CI locale, puis PR gate.
+    category: verification
     targets:
       - claude-code
       - agent-skills-compatible
@@ -33,6 +44,7 @@ skills:
     path: skills/verify-context-health
     version: "1.0.0"
     description: Audit santé du contexte agent — token budget, progressive disclosure, skills inutilisées.
+    category: verification
     targets:
       - claude-code
       - agent-skills-compatible
@@ -42,6 +54,7 @@ skills:
     path: skills/verify-unity-playmode
     version: "1.0.0"
     description: Vérification Unity CLI — tests EditMode/PlayMode, build batchmode, rapport.
+    category: verification
     targets:
       - claude-code
       - agent-skills-compatible
@@ -50,9 +63,67 @@ skills:
       - unity-cli
       - bash
 
+# ─── PROJECT SUITE (5 SKILLS) ─────────────────────────────────────────
+
+  - name: project-init
+    path: skills/project-init
+    version: "1.0.0"
+    description: Initialise un projet de zéro — brainstorm, PRD, issues, scaffold, git init.
+    category: project-suite
+    targets:
+      - claude-code
+      - agent-skills-compatible
+    next: project-build
+
+  - name: project-build
+    path: skills/project-build
+    version: "1.0.0"
+    description: Implémente une feature avec TDD (Red→Green→Refactor) + Gauntlet Loop.
+    category: project-suite
+    targets:
+      - claude-code
+      - agent-skills-compatible
+    previous: project-init
+    next: project-test
+
+  - name: project-test
+    path: skills/project-test
+    version: "1.0.0"
+    description: Suite de tests complète — unitaires, intégration, e2e, rapport de couverture.
+    category: project-suite
+    targets:
+      - claude-code
+      - agent-skills-compatible
+    previous: project-build
+    next: project-ship
+
+  - name: project-ship
+    path: skills/project-ship
+    version: "1.0.0"
+    description: Livraison complète — CHANGELOG, versioning, build prod, tag Git, déploiement.
+    category: project-suite
+    targets:
+      - claude-code
+      - agent-skills-compatible
+    previous: project-test
+    next: project-review
+
+  - name: project-review
+    path: skills/project-review
+    version: "1.0.0"
+    description: Revue complète — code quality, architecture, performance, sécurité, DX.
+    category: project-suite
+    targets:
+      - claude-code
+      - agent-skills-compatible
+    previous: project-ship
+
+# ─── SKILLS EXISTANTS ─────────────────────────────────────────────────
+
   - name: skill-architect
     path: skills/skill-architect
     version: "1.0.0"
+    category: meta
     targets:
       - claude-code
       - agent-skills-compatible
@@ -60,6 +131,7 @@ skills:
   - name: gauntlet-loop-dev
     path: skills/gauntlet-loop-dev
     version: "1.0.0"
+    category: quality
     targets:
       - claude-code
       - agent-skills-compatible
@@ -67,6 +139,7 @@ skills:
   - name: indagis-feature-builder
     path: skills/indagis-feature-builder
     version: "1.0.0"
+    category: project-suite
     targets:
       - claude-code
       - agent-skills-compatible
@@ -74,6 +147,7 @@ skills:
   - name: unity-gamedev
     path: skills/unity-gamedev
     version: "1.0.0"
+    category: gamedev
     targets:
       - claude-code
       - agent-skills-compatible
