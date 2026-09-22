@@ -4,8 +4,9 @@ description: >
   Vérifie un projet Unity via CLI : exécute les tests EditMode et PlayMode, build le projet en batchmode,
   et valide qu'une scène ou une feature Unity fonctionne avant merge ou déploiement.
   Produit un rapport .verify/<timestamp>/unity-verify-report.md avec verdict clair.
+  Anti-hallucination : jamais de résultats simulés, Unity CLI obligatoire.
 license: MIT
-version: "1.0.0"
+version: "1.1.0"
 metadata:
   author: agtktID
   repo: https://github.com/agtktID/skill-verify
@@ -19,6 +20,7 @@ metadata:
     - cli
     - build
     - anti-hallucination
+    - batchmode
 allowed-tools:
   - Bash
   - Read
@@ -35,10 +37,11 @@ Skill de vérification pour projets Unity. Il force l'agent à **prouver via Uni
 
 Utilise `/verify-unity-playmode` quand :
 
-- Tu ajoutes ou modifies une feature dans un projet Unity (gameplay, UI, scripts, prefabs).
+- Tu ajoutes ou modifies une feature dans un projet Unity (gameplay, UI, scripts C#, prefabs).
 - Tu veux vérifier que les tests EditMode et/ou PlayMode passent.
 - Tu veux un build de validation avant de merger ou de déployer.
 - Tu travailles avec le skill `unity-gamedev` et veux une couche de QA à la fin.
+- Tu veux une gate de qualité avant ouverture de PR sur un projet Unity.
 
 Ne pas utiliser pour :
 
@@ -50,12 +53,12 @@ Ne pas utiliser pour :
 ## 🔧 Pré-requis
 
 - Unity CLI installé et accessible (`unity -version` retourne un résultat).
-- Un projet Unity valide avec un `Assets/` et un `ProjectSettings/`.
+- Un projet Unity valide avec `Assets/` et `ProjectSettings/`.
 - Optionnel : tests EditMode dans `Assets/Tests/EditMode/`.
 - Optionnel : tests PlayMode dans `Assets/Tests/PlayMode/`.
 - Optionnel : script `skills/verify-unity-playmode/scripts/unity-verify.sh` pour encapsuler les commandes.
 
-Si Unity CLI n'est pas disponible → gate BLOQUÉ, afficher l'erreur.
+Si Unity CLI n'est pas disponible → gate **BLOQUÉ**, afficher l'erreur.
 
 ---
 
@@ -70,7 +73,7 @@ User → Claude Code + Skill verify-unity-playmode
          ↓
    4. Build batchmode (si demandé)
          ↓
-   5. Verdict PASS/ECHEC/PARTIEL/BLOQUE
+   5. Verdict PASS / ECHEC / PARTIEL / BLOQUÉ
          ↓
    .verify/<timestamp>/unity-verify-report.md
 ```
@@ -87,11 +90,13 @@ unity -version
 # "C:/Program Files/Unity/Hub/Editor/<version>/Editor/Unity.exe" -version
 ```
 
-Si Unity CLI n'est pas dans le PATH, vérifier les chemins standards :
+Chemins standards si Unity n'est pas dans le PATH :
 
-- macOS : `/Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity`
-- Linux : `~/Unity/Hub/Editor/<version>/Editor/Unity`
-- Windows : `C:/Program Files/Unity/Hub/Editor/<version>/Editor/Unity.exe`
+| OS | Chemin |
+|----|--------|
+| macOS | `/Applications/Unity/Hub/Editor/<ver>/Unity.app/Contents/MacOS/Unity` |
+| Linux | `~/Unity/Hub/Editor/<ver>/Editor/Unity` |
+| Windows | `C:/Program Files/Unity/Hub/Editor/<ver>/Editor/Unity.exe` |
 
 ### 2. Tests EditMode
 
@@ -106,8 +111,8 @@ unity \
   -nographics
 ```
 
-- Gate PASS si exit code 0.
-- Gate ECHEC si exit code non nul → lire `.verify/<ts>/editmode.log`.
+- Gate **PASS** si exit code 0.
+- Gate **ECHEC** si exit code non nul → lire `.verify/<ts>/editmode.log`.
 
 ### 3. Tests PlayMode (si présents)
 
@@ -122,8 +127,8 @@ unity \
   -nographics
 ```
 
-- Si pas de tests PlayMode → gate SKIP (ne pas compter comme ECHEC).
-- Gate PASS si exit code 0.
+- Si pas de tests PlayMode → gate **SKIP** (ne pas compter comme ECHEC).
+- Gate **PASS** si exit code 0.
 
 ### 4. Build batchmode (optionnel)
 
@@ -140,17 +145,17 @@ unity \
   -logFile .verify/<ts>/build.log
 ```
 
-- Gate PASS si exit code 0 et dossier `.verify/<ts>/build/` non vide.
-- Gate ECHEC sinon.
+- Gate **PASS** si exit code 0 et dossier `.verify/<ts>/build/` non vide.
+- Gate **ECHEC** sinon.
 
 ### 5. Verdict et rapport
 
-Verdicts possibles :
-
-- **PASS** : tous les tests PASS, build OK (si demandé).
-- **ECHEC** : au moins un test ECHEC ou build ECHEC.
-- **PARTIEL** : tests PASS mais warnings importants dans les logs.
-- **BLOQUÉ** : Unity CLI non disponible ou projet non valide.
+| Verdict | Condition |
+|---------|----------|
+| **PASS** | Tous les tests PASS, build OK (si demandé) |
+| **ECHEC** | Au moins un test ECHEC ou build ECHEC |
+| **PARTIEL** | Tests PASS mais warnings importants dans les logs |
+| **BLOQUÉ** | Unity CLI non disponible ou projet non valide |
 
 ---
 
@@ -166,8 +171,8 @@ MODE: VERIFY-UNITY-PLAYMODE
 
 ## Gates
 - ✅/❌ Unity CLI disponible → <version ou erreur>
-- ✅/❌ Tests EditMode → <nb tests PASS / nb total>
-- ✅/⏭️/❌ Tests PlayMode → <nb tests PASS / nb total ou SKIP>
+- ✅/❌ Tests EditMode → <nb PASS / nb total>
+- ✅/⏭️/❌ Tests PlayMode → <nb PASS / nb total ou SKIP>
 - ✅/❌/⏭️ Build batchmode → <target ou SKIP>
 
 ## Logs
@@ -188,11 +193,12 @@ MODE: VERIFY-UNITY-PLAYMODE
 
 ## 🔗 Intégration avec les autres skills
 
-Ce skill est conçu pour fonctionner avec :
-
-- `unity-gamedev` : pour générer ou modifier les scripts/prefabs Unity avant vérification.
-- `verify` : comme gate de vérification générale si Unity ne suffit pas.
-- `project-ship` : avant le ship final d'une version du jeu.
+| Skill | Rôle |
+|-------|------|
+| `unity-gamedev` | Génère ou modifie les scripts/prefabs Unity avant vérification |
+| `verify` | Gate de vérification générale si Unity ne suffit pas |
+| `project-ship` | Gate finale avant le ship d'une version du jeu |
+| `gauntlet-loop-dev` | Itère sur les corrections Unity jusqu'au seuil de qualité |
 
 ---
 
@@ -200,6 +206,14 @@ Ce skill est conçu pour fonctionner avec :
 
 - Ne jamais déclarer les tests PASS sans avoir lu l'exit code de Unity CLI.
 - Toujours capturer les logs complets dans `.verify/<ts>/`.
-- Si Unity CLI retourne un exit code non nul, afficher les dernières lignes du log.
+- Si Unity CLI retourne un exit code non nul, afficher les **dernières 30 lignes** du log.
 - Ne jamais simuler les résultats des tests ou du build.
-- Si les tests PlayMode sont absents, déclarer SKIP (pas ECHEC).
+- Si les tests PlayMode sont absents, déclarer **SKIP** (pas ECHEC).
+- Ne jamais utiliser un chemin Unity en dur sans vérification préalable (`unity -version`).
+
+---
+
+## 📚 Changelog
+
+- **v1.1.0** (2026-09-22) : Ajout table des verdicts, table d'intégration, table des chemins Unity, règle log 30 lignes, anti-hallucination renforcé.
+- **v1.0.0** : Version initiale.

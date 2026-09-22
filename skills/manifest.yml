@@ -1,9 +1,10 @@
-version: "0.3"
+version: "0.4"
 project: skill-verify
 description: >
   Collection de skills de vérification et de développement agentique pour Claude Code, Hermes et decode.
   Comprend le kit complet 5-skills pour créer, développer, tester, livrer et reviewer un projet de A à Z,
   plus les skills de vérification automatique avec hooks, scripts et rapports structurés.
+  Mise à jour v0.4 : descriptions complètes sur tous les skills, alignement des targets et versions.
 
 # ─── SKILLS DE VÉRIFICATION ───────────────────────────────────────────
 
@@ -11,7 +12,7 @@ skills:
   - name: verify
     path: skills/verify
     version: "1.1.0"
-    description: Mode de vérification persistant avec gates, logs et rapport PASS/ECHEC.
+    description: Mode de vérification persistant avec gates, logs et rapport PASS/ECHEC. Anti-hallucination via Bash + exit codes.
     category: verification
     targets:
       - claude-code
@@ -30,7 +31,7 @@ skills:
   - name: verify-feature-end2end
     path: skills/verify-feature-end2end
     version: "1.0.0"
-    description: Pipeline e2e — démarre l'app, exerce la feature, CI locale, puis PR gate.
+    description: Pipeline e2e — démarre l'app, exerce la feature via HTTP ou navigateur, CI locale, puis PR gate uniquement si PASS.
     category: verification
     targets:
       - claude-code
@@ -43,7 +44,7 @@ skills:
   - name: verify-context-health
     path: skills/verify-context-health
     version: "1.0.0"
-    description: Audit santé du contexte agent — token budget, progressive disclosure, skills inutilisées.
+    description: Audit santé contexte agent — token budget au boot, progressive disclosure, skills inutilisées, recommandations de nettoyage.
     category: verification
     targets:
       - claude-code
@@ -53,7 +54,7 @@ skills:
   - name: verify-unity-playmode
     path: skills/verify-unity-playmode
     version: "1.0.0"
-    description: Vérification Unity CLI — tests EditMode/PlayMode, build batchmode, rapport.
+    description: Vérification Unity CLI — tests EditMode/PlayMode, build batchmode, rapport verdict avec logs complets.
     category: verification
     targets:
       - claude-code
@@ -68,7 +69,7 @@ skills:
   - name: project-init
     path: skills/project-init
     version: "1.0.0"
-    description: Initialise un projet de zéro — brainstorm, PRD, issues, scaffold, git init.
+    description: Initialise un projet de zéro — brainstorm, PRD, issues GitHub, scaffold, git init.
     category: project-suite
     targets:
       - claude-code
@@ -78,7 +79,7 @@ skills:
   - name: project-build
     path: skills/project-build
     version: "1.0.0"
-    description: Implémente une feature avec TDD (Red→Green→Refactor) + Gauntlet Loop.
+    description: Implémente une feature avec TDD (Red→Green→Refactor) + Gauntlet Loop. Scope strict, diff vérifié avant commit.
     category: project-suite
     targets:
       - claude-code
@@ -89,7 +90,7 @@ skills:
   - name: project-test
     path: skills/project-test
     version: "1.0.0"
-    description: Suite de tests complète — unitaires, intégration, e2e, rapport de couverture.
+    description: Suite de tests complète — unitaires, intégration, e2e, rapport de couverture, seuils configurables.
     category: project-suite
     targets:
       - claude-code
@@ -100,7 +101,7 @@ skills:
   - name: project-ship
     path: skills/project-ship
     version: "1.0.0"
-    description: Livraison complète — CHANGELOG, versioning, build prod, tag Git, déploiement.
+    description: Livraison complète — CHANGELOG, versioning SemVer, build prod, tag Git, déploiement.
     category: project-suite
     targets:
       - claude-code
@@ -111,7 +112,7 @@ skills:
   - name: project-review
     path: skills/project-review
     version: "1.0.0"
-    description: Revue complète — code quality, architecture, performance, sécurité, DX.
+    description: Revue complète — code quality, architecture, performance, sécurité, DX. Rapport structuré avec recommandations.
     category: project-suite
     targets:
       - claude-code
@@ -122,7 +123,8 @@ skills:
 
   - name: skill-architect
     path: skills/skill-architect
-    version: "1.0.0"
+    version: "1.1.0"
+    description: Conçoit, audite et refactore des skills et system prompts. Crée des SKILL.md production-ready avec frontmatter, trigger, sécurité et evals.
     category: meta
     targets:
       - claude-code
@@ -130,7 +132,8 @@ skills:
 
   - name: gauntlet-loop-dev
     path: skills/gauntlet-loop-dev
-    version: "1.0.0"
+    version: "1.1.0"
+    description: Boucle builder-critic pour itérer vers une barre de qualité concrète — UI, API, script ou feature avec TDD et preuves exécutables.
     category: quality
     targets:
       - claude-code
@@ -138,7 +141,8 @@ skills:
 
   - name: indagis-feature-builder
     path: skills/indagis-feature-builder
-    version: "1.0.0"
+    version: "1.1.0"
+    description: Construit les features Indagis Agent une par une — spec-first, scope strict, diff vérifié, flux réel rejoué avant commit.
     category: project-suite
     targets:
       - claude-code
@@ -147,6 +151,7 @@ skills:
   - name: unity-gamedev
     path: skills/unity-gamedev
     version: "1.0.0"
+    description: Développement Unity — scripts C#, prefabs, scènes, architecture de projet, bonnes pratiques GameDev avec Claude Code.
     category: gamedev
     targets:
       - claude-code
